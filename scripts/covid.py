@@ -47,9 +47,8 @@ class covid_brasil:
         self.transform()
         self.graficos()
 
-
     def constantes(self):
-
+        pass
 
     def ler_dados(self, diretorio):
         """
