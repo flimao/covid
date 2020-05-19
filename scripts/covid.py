@@ -179,10 +179,11 @@ class covid_brasil:
         """
 
         mm_aplicar = ['obitosAcumMMhab', 'obitos_7d_MMhab', 'casosAcumMMhab', 'casos_7d_MMhab']
-        for mm in mm_aplicar:
-            self.covidbr[mm + '_mm'] = self.covidbr.groupby(self.agrupar_full)[mm].apply(
-                lambda x: x.rolling(janela_mm).mean()
-            )
+        mm_aplicado = [ mm + '_mm' for mm in mm_aplicar ]
+
+        self.covidbr[mm_aplicado] = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
+            lambda x: x.rolling(janela_mm).mean()
+        )
 
 
     def dias_desde_obito_percapita(self):
