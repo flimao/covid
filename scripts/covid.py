@@ -39,9 +39,6 @@ class covid_brasil:
         if diretorio is None:
             diretorio = r'..'
 
-        self.estados_plot = ['RJ', 'SP', 'AM', 'RS', 'Brasil']
-        self.municipios_plot = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']
-
         self.covidbr = self.ler_dados(diretorio)
         self.preproc()
         self.transform()
@@ -175,7 +172,7 @@ class covid_brasil:
         self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
 
 
-    def suavizacao(self):
+    def suavizacao(self, janela_mm = mm_periodo):
         """
         suavização via média móvel com período definido anteriormente
         :return: None
@@ -184,7 +181,7 @@ class covid_brasil:
         mm_aplicar = ['obitosAcumMMhab', 'obitos_7d_MMhab', 'casosAcumMMhab', 'casos_7d_MMhab']
         for mm in mm_aplicar:
             self.covidbr[mm + '_mm'] = self.covidbr.groupby(self.agrupar_full)[mm].apply(
-                lambda x: x.rolling(mm_periodo).mean()
+                lambda x: x.rolling(janela_mm).mean()
             )
 
 
@@ -347,14 +344,16 @@ class covid_brasil:
         return axs
 
 
-    def graficos(self):
+    def graficos(self,
+                 estados = ['RJ', 'SP', 'AM', 'RS', 'Brasil'],
+                 municipios = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']):
         """
         plotar gráficos
         :return: None
         """
 
-        self.plt_data_estados = self.covidrel[~self.mask_exc_resumo][self.covidrel['estado'].isin(self.estados_plot)]
-        self.plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(self.municipios_plot)]
+        plt_data_estados = self.covidrel[~self.mask_exc_resumo][self.covidrel['estado'].isin(estados)]
+        plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(municipios)]
 
         # executar todas as funções no escopo atual começando por 'graf_'
 
@@ -363,7 +362,7 @@ class covid_brasil:
         self.eixos = []
 
         for f in func_grafs:
-            axs = f(self, self.plt_data_estados, self.plt_data_municipios)
+            axs = f(self, plt_data_estados, plt_data_municipios)
             self.eixos += axs
 
 
