@@ -6,35 +6,53 @@
 import pandas as pd
 import os.path
 import datetime as dt
+import locale
 import seaborn as sns
 #import pymc3 as pm
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatterSciNotation
 
 sns.set(style = 'ticks', rc = { 'grid.color': '.8', 'grid.linestyle': '-'})
+locale.setlocale(locale.LC_ALL,'portuguese_brazil')
 
 # ##
 # parâmetros
 # ##
 mm_periodo = 5
 
+print(dt.date.strftime(dt.date.today(), "%d%mmm%Y"))
+exit()
 
 # classe para enganar o formatador com notação científica.
 class CustomTicker(LogFormatterSciNotation):
     def __call__(self, x, pos=None):
         return "{x:g}".format(x=x)
 
-# leitura dos dados
 
-DATAFILE = r'HIST_PAINEL_COVIDBR_'
+# classe para leitura, processamento e pós-processamento do dados brasileiros
 
-today = dt.date.today()
-last_day = today + dt.timedelta(days = -1)
+class covid_brasil:
+    def __init__(self, diretorio):
+        self.covidbr = self.ler_dados(diretorio)
 
-DATAFILE_DATE = DATAFILE + dt.date.strftime(last_day, "%Y%m%d") + r'.xlsx'
-DATAFILE_DATA_io = os.path.join(r'.', DATAFILE_DATE)
+    def ler_dados(self, diretorio):
+        """
+        ler os dados da planilha excel exposta diariamente por https://covid.saude.gov.br/
 
-covidbr = pd.read_excel(DATAFILE_DATA_io)
+        :param diretorio: o diretório contendo o arquivo excel
+        :return: um dataframe contendo as informações do arquivo excel
+        """
+        # leitura dos dados
+
+        DATAFILE = r'HIST_PAINEL_COVIDBR_'
+
+        today = dt.date.today()
+        last_day = today + dt.timedelta(days = -1)
+
+        DATAFILE_DATE = DATAFILE + dt.date.strftime(last_day, "%d%b%Y") + r'.xlsx'
+        DATAFILE_DATA_io = os.path.join(diretorio, DATAFILE_DATE)
+
+        return pd.read_excel(DATAFILE_DATA_io)
 
 # pré-processamento dos dados
 
