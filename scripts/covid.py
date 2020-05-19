@@ -193,7 +193,7 @@ class covid_brasil:
         """
         self.mask_obitoMMhab = self.covidbr['obitosAcumMMhab'] >= 0.1
 
-        self.covidrel = self.covidbr.loc[self.mask_obitoMMhab, :]
+        self.covidrel = self.covidbr.loc[self.covidbr[self.mask_obitoMMhab].index]
 
         self.covidrel['dias_desde_obito_MMhab'] = self.covidrel.groupby(self.agrupar_full)['data'].apply(
             lambda x: x - x.iloc[0]
