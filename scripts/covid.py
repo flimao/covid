@@ -47,6 +47,7 @@ class covid_brasil:
     def constantes(self):
         pass
 
+
     def ler_dados(self, diretorio):
         """
         ler os dados da planilha excel exposta diariamente por https://covid.saude.gov.br/
@@ -100,6 +101,9 @@ class covid_brasil:
         self.casos_obitos_percapita()
         self.suavizacao()
         self.dias_desde_obito_percapita()
+
+        # mais constantes
+        self.mask_exc_resumo_rel = self.covidrel['municipio'].isnull()
 
 
     def substituir_nomes(self):
@@ -353,7 +357,7 @@ class covid_brasil:
         :return: None
         """
 
-        plt_data_estados = self.covidrel[~self.mask_exc_resumo][self.covidrel['estado'].isin(estados)]
+        plt_data_estados = self.covidrel[~self.mask_exc_resumo_rel][self.covidrel['estado'].isin(estados)]
         plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(municipios)]
 
         # executar todas as funções no escopo atual começando por 'graf_'
