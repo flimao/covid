@@ -349,6 +349,39 @@ class covid_brasil:
         return axs
 
 
+    def graf_casos_novos_por_dias_pandemia(self, data_estados, data_municipios):
+        """
+        gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
+        :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
+        :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
+        :return:
+        """
+
+        plt.figure()
+        ax5c = sns.lineplot(data=data_estados, x='dias_desde_obito_MMhab', y='casos_7d_MMhab_mm', hue='estado',
+                            err_style=None)
+        plt.tight_layout()
+        sns.despine()
+
+        plt.figure()
+        ax6c = sns.lineplot(data=data_municipios, x='dias_desde_obito_MMhab', y='casos_7d_MMhab_mm', hue='municipio',
+                            err_style=None)
+        plt.tight_layout()
+        sns.despine()
+
+        axs = [ax5c, ax6c]
+
+        for ax in axs:
+            ax.set(xscale='linear', yscale='linear',
+                   xticks={'minor': True}, yticks={'minor': True},
+                   adjustable='datalim',
+                   xlabel='Dias desde 0.1 óbito por MM hab.',
+                   ylabel='Casos Novos (por MM hab., últimos 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+                   title='Evolução da COVID-19 no Brasil (Infecções)')
+
+        return axs
+
+
     def graficos(self,
                  estados = ['RJ', 'SP', 'AM', 'RS', 'Brasil'],
                  municipios = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']):
