@@ -83,8 +83,6 @@ class covid_brasil:
         """
 
         # definição de constantes
-        self.mask_exc_resumo = ~self.covidbr['municipio'].isnull()
-
         self.interessante = ['regiao', 'estado', 'municipio', 'data', 'dias_caso_0',
                              'obitosAcumulado', 'casosAcumulado', 'obitosNovo', 'casosNovo',
                              'obitosMMhab', 'casosMMhab', 'obitosAcumMMhab', 'casosAcumMMhab']
@@ -103,7 +101,8 @@ class covid_brasil:
         self.dias_desde_obito_percapita()
 
         # mais constantes
-        self.mask_exc_resumo_rel = self.covidrel['municipio'].isnull()
+        self.mask_exc_resumo = ~self.covidbr['municipio'].isin(['Brasil', 'RESUMO'])
+        self.mask_exc_resumo_rel = ~self.covidrel['municipio'].isin(['Brasil', 'RESUMO'])
 
 
     def substituir_nomes(self):
@@ -390,7 +389,7 @@ class covid_brasil:
         :return: None
         """
 
-        plt_data_estados = self.covidrel[~self.mask_exc_resumo_rel][self.covidrel['estado'].isin(estados)]
+        plt_data_estados = self.covidrel[self.covidrel.index.isin((~self.mask_exc_resumo_rel).index)][self.covidrel['estado'].isin(estados)]
         plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(municipios)]
 
         # executar todas as funções no escopo atual começando por 'graf_'
