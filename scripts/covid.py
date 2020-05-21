@@ -42,7 +42,7 @@ class covid_brasil:
         self.covidbr = self.ler_dados(diretorio)
         self.preproc()
         self.transform()
-        #self.graficos()
+        self.graficos()
 
     def constantes(self):
         pass
@@ -167,7 +167,7 @@ class covid_brasil:
         self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
         self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
 
-        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] /\
+        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] / \
                                           (self.covidbr['populacaoTCU2019'] / (10 ** 6))
         self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
 
@@ -290,7 +290,7 @@ class covid_brasil:
         """
         plt.figure()
         ax3o = sns.lineplot(data=data_estados, x='dias_desde_obito_MMhab', y='obitosAcumMMhab_mm', hue='estado',
-            err_style=None)
+                            err_style=None)
         plt.tight_layout()
         sns.despine()
 
@@ -377,6 +377,7 @@ class covid_brasil:
                    xlabel='Dias desde 0.1 óbito por MM hab.',
                    ylabel='Casos Novos (por MM hab., últimos 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
                    title='Evolução da COVID-19 no Brasil (Infecções)')
+            ax.get_yaxis().set_major_formatter(CustomTicker())
 
         return axs
 
@@ -389,7 +390,7 @@ class covid_brasil:
         :return: None
         """
 
-        plt_data_estados = self.covidrel[self.covidrel.index.isin((~self.mask_exc_resumo_rel).index)][self.covidrel['estado'].isin(estados)]
+        plt_data_estados = self.covidrel[(~self.mask_exc_resumo_rel) & self.covidrel['estado'].isin(estados)]
         plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(municipios)]
 
         # executar todas as funções no escopo atual começando por 'graf_'
@@ -404,12 +405,13 @@ class covid_brasil:
 
 
     def graficos_plotly(self,
-                 estados=['RJ', 'SP', 'AM', 'RS', 'Brasil'],
-                 municipios=['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']):
+                        estados=['RJ', 'SP', 'AM', 'RS', 'Brasil'],
+                        municipios=['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']):
         """
         plotar gráficos com a ferramenta plotly
         :return: None
         """
         pass
+
 
 br = covid_brasil(diretorio = None)

@@ -11,6 +11,7 @@ import seaborn as sns
 #import pymc3 as pm
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatterSciNotation
+import plotly.graph_objs as go
 
 sns.set(style = 'ticks', rc = { 'grid.color': '.8', 'grid.linestyle': '-'})
 locale.setlocale(locale.LC_ALL,'portuguese_brazil')
@@ -413,3 +414,4 @@ class covid_brasil:
         pass
 
 br = covid_brasil(diretorio = None)
+df = br.covidrel[br.covidrel['municipio']=='Niterói']
