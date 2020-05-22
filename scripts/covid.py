@@ -383,8 +383,8 @@ class covid_brasil:
 
 
     def graficos(self,
-                 estados = ['RJ', 'SP', 'AM', 'RS', 'Brasil'],
-                 municipios = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil', 'Manaus']):
+                 estados = ['RJ', 'SP', 'AM', 'Brasil'],
+                 municipios = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil']):
         """
         plotar gráficos
         :return: None
