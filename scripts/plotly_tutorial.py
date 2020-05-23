@@ -35,6 +35,7 @@ img = r'..\imgs (nogit)\img.png'
 
 y_axis_title = 'Casos novos (últimos 7 dias, por MM hab.)<br>' + \
                '(média móvel de ' + str(mm_periodo) + ' dias)'
+x_axis_title = 'Dias desde óbitos = 0,1 / MM hab.'
 
 
 fig = px.line(df, x='dias_desde_obito_MMhab', y='casos_7d_MMhab', color='estado',
@@ -49,33 +50,56 @@ fig.update_layout(hovermode='x unified',
                   title_text = 'Evolução da COVID-19 no Brasil (Infecções)')
 
 fig.update_yaxes(title_text = y_axis_title)
-fig.update_xaxes(title_text = 'Dias desde óbitos = 0,1 / MM hab.')
+fig.update_xaxes(title_text = x_axis_title)
 
-log_or_linear_y = [{
+log_or_linear = [{
     'active': 0,
     'y': 0.96, 'x': -0.11,
     'xanchor': 'right', 'yanchor':'top',
-    'type': 'buttons',
+    'type': 'dropdown',
     'buttons':[
         { 'label': 'Log',
-          'method': 'update',
-          'args': [{'visible': [True, True]},
-                   {'yaxis_type': 'log'}]
+          'method': 'relayout',
+          'args': ['yaxis', {'type': 'log',
+                             'title': {'text': y_axis_title}}]
         },
         { 'label': 'Linear',
-          'method': 'update',
-          'args': [{'visible': [True, True]},
-                   {'yaxis_type': 'linear'}]
-        }]
+          'method': 'relayout',
+          'args': ['yaxis', {'type': 'linear',
+                             'title': {'text': y_axis_title}}]
+        }
+]
+},{
+    'active': 1,
+    'y': -0.16, 'x': 0.9,
+    'xanchor': 'left', 'yanchor':'top',
+    'type': 'dropdown', 'direction': 'left',
+    'buttons':[
+        { 'label': 'Log',
+          'method': 'relayout',
+          'args': ['xaxis', {'type': 'log',
+                             'title': {'text': x_axis_title}}]
+        },
+        { 'label': 'Linear',
+          'method': 'relayout',
+          'args': ['xaxis', {'type': 'linear',
+                             'title': {'text': x_axis_title}}]
+        }
+]
 }]
+
+
 
 annotations = [
         dict(text="Escala:", showarrow=False,
              x=-0.11, y=0.96, yref="paper", xref='paper',
-             xanchor='right', yanchor='bottom')
+             xanchor='right', yanchor='bottom'),
+        dict(text="Escala:", showarrow=False,
+             x=0.9, y=-0.17, yref="paper", xref='paper',
+             xanchor='right', yanchor='top')
     ]
 
-fig.update_layout(updatemenus=log_or_linear_y , annotations=annotations)
+fig.update_layout(updatemenus=log_or_linear, annotations=annotations)
 
 fig.write_html(html)
 fig.write_image(img)
