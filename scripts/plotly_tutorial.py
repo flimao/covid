@@ -38,8 +38,11 @@ y_axis_title = 'Casos novos (últimos 7 dias, por MM hab.)<br>' + \
 x_axis_title = 'Dias desde óbitos = 0,1 / MM hab.'
 
 
-fig = px.line(df, x='dias_desde_obito_MMhab', y='casos_7d_MMhab', color='estado',
+fig1 = px.line(df, x='dias_desde_obito_MMhab', y='casos_7d_MMhab', color='estado',
               log_y = True, hover_name='estado')
+fig2 = px.line(df, x='dias_desde_obito_MMhab', y='obitos_7d_MMhab', color='estado',
+              log_y = True, hover_name='estado')
+fig = fig1 + fig2
 
 fig.update_traces(connectgaps = True,
                   hovertemplate=
