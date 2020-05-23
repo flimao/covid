@@ -32,7 +32,7 @@ class covid_brasil:
     classe para leitura, processamento e pós-processamento dos dados brasileiros
     da COVID-19
     """
-    def __init__(self, diretorio = None):
+    def __init__(self, diretorio = None, graficos=True):
 
         # se diretorio for None, corresponde ao diretorio raiz do script
 
@@ -42,7 +42,8 @@ class covid_brasil:
         self.covidbr = self.ler_dados(diretorio)
         self.preproc()
         self.transform()
-        self.graficos()
+        if graficos:
+            self.graficos()
 
     def constantes(self):
         pass
@@ -97,8 +98,12 @@ class covid_brasil:
         self.casos_obitos_novos()
         self.casos_obitos_ultima_semana()
         self.casos_obitos_percapita()
+        self.incidencia()
+        self.letalidade()
+
         self.suavizacao()
         self.dias_desde_obito_percapita()
+
 
         # mais constantes
         self.mask_exc_resumo = ~self.covidbr['municipio'].isin(['Brasil', 'RESUMO'])
@@ -127,7 +132,6 @@ class covid_brasil:
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'municipio'] = 'Brasil'
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'estado'] = 'Brasil'
 
-
     def dias_desde_caso_0(self):
         """
         calcular dias desde caso 0
@@ -136,7 +140,6 @@ class covid_brasil:
 
         self.covidbr['dias_caso_0'] = self.covidbr['data'] - self.covidbr['data'].iloc[0]
         self.covidbr['dias_caso_0'] = self.covidbr['dias_caso_0'].apply(lambda x: x.days).astype(int)
-
 
     def casos_obitos_novos(self):
         """
@@ -147,7 +150,6 @@ class covid_brasil:
         self.covidbr['obitosNovo'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff().fillna(0)
         self.covidbr['casosNovo'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff().fillna(0)
 
-
     def casos_obitos_ultima_semana(self):
         """
         casos e óbitos na última semana
@@ -156,7 +158,6 @@ class covid_brasil:
 
         self.covidbr['obitos_7d'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff(7).fillna(0)
         self.covidbr['casos_7d'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff(7).fillna(0)
-
 
     def casos_obitos_percapita(self):
         """
@@ -174,7 +175,6 @@ class covid_brasil:
         self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
         self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
 
-
     def suavizacao(self, janela_mm = mm_periodo):
         """
         suavização via média móvel com período definido anteriormente
@@ -187,7 +187,6 @@ class covid_brasil:
         self.covidbr[mm_aplicado] = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
             lambda x: x.rolling(janela_mm).mean()
         )
-
 
     def dias_desde_obito_percapita(self):
         """
@@ -206,7 +205,6 @@ class covid_brasil:
             lambda x: x.days
         ).astype(int)
 
-
     def filtro_ultimos_n_dias(self, dias_atras=1, full=False):
         """
         criar um filtro que só mostra os ultimos n dias
@@ -222,6 +220,22 @@ class covid_brasil:
 
         return c.data >= dt.datetime.today()-dt.timedelta(days=dias_atras+1)
 
+    def incidencia(self):
+        """
+        calcula incidencia (total de casos / populacao)
+        a incidencia é instável nos primeiros dias da infecção, mas vai ficando mais estável à medida em que a curva de
+        infecções vai escapando da exponencial
+
+        :return: None
+        """
+        self.covidbr['incidencia'] = self.covidbr['casosAcumulado'] / self.covidbr['populacaoTCU2019']
+
+    def letalidade(self):
+        """
+        calcula letalidade (total de obitos / total de casos)
+
+        :return: None
+        """
 
     def graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
         """
