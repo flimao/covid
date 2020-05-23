@@ -222,13 +222,14 @@ class covid_brasil:
 
     def incidencia(self):
         """
-        calcula incidencia (total de casos / populacao)
+        calcula incidencia (total de casos / populacao), por 100 mil hab.
         a incidencia é instável nos primeiros dias da infecção, mas vai ficando mais estável à medida em que a curva de
         infecções vai escapando da exponencial
 
         :return: None
         """
-        self.covidbr['incidencia'] = self.covidbr['casosAcumulado'] / self.covidbr['populacaoTCU2019']
+        self.covidbr['incidencia'] = self.covidbr['casosAcumulado'] / \
+        (self.covidbr['populacaoTCU2019'] * (10**5))
 
     def letalidade(self):
         """
@@ -236,6 +237,16 @@ class covid_brasil:
 
         :return: None
         """
+        self.covidbr['letalidade'] = self.covidbr['obitosAcumulado'] / self.covidbr['casosAcumulado']
+
+    def mortalidade(self):
+        """"
+         calcula mortalidade (total de obitos / populacao), por 100 mil hab.
+
+         :return: None
+         """
+        self.covidbr['mortalidade'] = self.covidbr['obitosAcumulado'] / \
+                                     (self.covidbr['populacaoTCU2019'] * (10**5))
 
     def graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
         """
@@ -533,4 +544,4 @@ class covid_brasil:
             self.eixos += axs
 
 
-br = covid_brasil(diretorio = None)
+br = covid_brasil(diretorio = None, graficos = False)
