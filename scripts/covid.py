@@ -100,6 +100,7 @@ class covid_brasil:
         self.casos_obitos_percapita()
         self.incidencia()
         self.letalidade()
+        self.mortalidade()
 
         self.suavizacao()
         self.dias_desde_obito_percapita()
@@ -240,7 +241,7 @@ class covid_brasil:
         self.covidbr['letalidade'] = self.covidbr['obitosAcumulado'] / self.covidbr['casosAcumulado']
 
     def mortalidade(self):
-        """"
+        """
          calcula mortalidade (total de obitos / populacao), por 100 mil hab.
 
          :return: None
@@ -545,3 +546,5 @@ class covid_brasil:
 
 
 br = covid_brasil(diretorio = None, graficos = False)
+
+cbr = br.covidbr[~br.mask_exc_resumo]
