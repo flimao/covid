@@ -33,6 +33,10 @@ df = br.covidrel[(~br.mask_exc_resumo_rel)&(br.covidrel['estado'].isin(data_esta
 html = r'..\imgs (nogit)\img.html'
 img = r'..\imgs (nogit)\img.png'
 
+y_axis_title = 'Casos novos (últimos 7 dias, por MM hab.)<br>' + \
+               '(média móvel de ' + str(mm_periodo) + ' dias)'
+
+
 fig = px.line(df, x='dias_desde_obito_MMhab', y='casos_7d_MMhab', color='estado',
               log_y = True, hover_name='estado')
 
@@ -41,39 +45,37 @@ fig.update_traces(connectgaps = True,
                   '<b>%{y:.1f} casos novos</b> / MM hab. nos 7 dias anteriores'
                   )
 
-fig.update_layout(hovermode='x unified')
+fig.update_layout(hovermode='x unified',
+                  title_text = 'Evolução da COVID-19 no Brasil (Infecções)')
 
-fig.update_yaxes(title_text = 'Casos novos (últimos 7 dias, por MM hab., média móvel de ' + str(mm_periodo) + ' dias)')
+fig.update_yaxes(title_text = y_axis_title)
 fig.update_xaxes(title_text = 'Dias desde óbitos = 0,1 / MM hab.')
 
-log_or_linear = [{
+log_or_linear_y = [{
     'active': 0,
+    'y': 0.96, 'x': -0.11,
+    'xanchor': 'right', 'yanchor':'top',
+    'type': 'buttons',
     'buttons':[
-        { 'label': 'Log Scale',
+        { 'label': 'Log',
           'method': 'update',
           'args': [{'visible': [True, True]},
-                   {'title': 'Evolução da COVID-19 no Brasil (Infecções) (escala log)',
-                    'yaxis':
-                        {'type': 'log',
-                         'title':{'text': 'Casos novos (últimos 7 dias, por MM hab., média móvel de '
-                                          + str(mm_periodo) + ' dias)'}
-                         }
-                    }]
+                   {'yaxis_type': 'log'}]
         },
-        { 'label': 'Linear Scale',
+        { 'label': 'Linear',
           'method': 'update',
           'args': [{'visible': [True, True]},
-                   {'title': 'Evolução da COVID-19 no Brasil (Infecções) (escala linear)',
-                    'yaxis':
-                        {'type': 'linear',
-                         'title':{'text': 'Casos novos (últimos 7 dias, por MM hab., média móvel de '
-                                          + str(mm_periodo) + ' dias)'}
-                         }
-                    }]
+                   {'yaxis_type': 'linear'}]
         }]
 }]
 
-fig.update_layout({'updatemenus': log_or_linear})
+annotations = [
+        dict(text="Escala:", showarrow=False,
+             x=-0.11, y=0.96, yref="paper", xref='paper',
+             xanchor='right', yanchor='bottom')
+    ]
+
+fig.update_layout(updatemenus=log_or_linear_y , annotations=annotations)
 
 fig.write_html(html)
 fig.write_image(img)
