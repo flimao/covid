@@ -48,7 +48,6 @@ class covid_brasil:
     def constantes(self):
         pass
 
-
     def ler_dados(self, diretorio):
         """
         ler os dados da planilha excel exposta diariamente por https://covid.saude.gov.br/
@@ -67,7 +66,6 @@ class covid_brasil:
 
         return pd.read_excel(DATAFILE_DATA_io)
 
-
     def preproc(self):
         """
         pre-processamento dos dados
@@ -75,7 +73,6 @@ class covid_brasil:
         """
 
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
-
 
     def transform(self):
         """
@@ -547,4 +544,5 @@ class covid_brasil:
 
 br = covid_brasil(diretorio = None, graficos = False)
 
-cbr = br.covidbr[~br.mask_exc_resumo]
+cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
+cbr = cbr.drop(columns=['municipio', 'codmun'])
