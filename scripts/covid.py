@@ -229,6 +229,7 @@ class covid_brasil:
                 3) realizar o LEFT JOIN e limpar as colunas.
                     Após esse passo, teremos, para um mesmo município, dois codmun. No exemplo acima,
                     Adamantina terá codmun 350010 e 3500105.
+                    Lembrar de sort() a coluna `data`
 
                 4) sanear o dataframe resultante para eliminar essa dupla codificação
                     através de um GroupBy inteligente
@@ -274,7 +275,7 @@ class covid_brasil:
 
         # passo 5
         self.covidbr.drop(columns = [ c for c in self.covidbr.columns if '_' in c ], inplace=True)
-
+        self.covidbr = self.covidbr.sort_values(by=['codmun', 'data'])
 
     def dias_desde_caso_0(self):
         """
@@ -688,7 +689,7 @@ class covid_brasil:
             self.eixos += axs
 
 
-br = covid_brasil(diretorio = None, graficos = True)
+br = covid_brasil(diretorio = None, graficos = False)
 
 cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
 cbr = cbr.drop(columns=['municipio', 'codmun'])
