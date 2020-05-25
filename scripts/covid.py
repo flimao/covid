@@ -3,6 +3,7 @@
 
 #import numpy as np
 #import scipy.stats as spst
+import numpy as np
 import pandas as pd
 import os.path
 import datetime as dt
@@ -26,21 +27,23 @@ class CustomTicker(LogFormatterSciNotation):
     def __call__(self, x, pos=None):
         return "{x:g}".format(x=x)
 
-
 class covid_brasil:
     """
     classe para leitura, processamento e pós-processamento dos dados brasileiros
     da COVID-19
     """
-    def __init__(self, diretorio = None, graficos=True):
+
+    def __init__(self, diretorio=None, graficos=True):
 
         # se diretorio for None, corresponde ao diretorio raiz do script
 
         if diretorio is None:
             diretorio = r'..'
 
-        self.covidbr, self.areas, self.areas_estados = self.ler_dados(diretorio)
+        self.covidbr, self.areas, self.areas_estados, self.demobr, self.demomun = self.ler_dados(diretorio)
+
         self.check = [62810, 6810, 2011, 2014, 88, 0]
+
         self.preproc()
         self.transform()
         if graficos:
@@ -77,7 +80,19 @@ class covid_brasil:
 
         areas_estados = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_UF_2019')
 
-        return covid, areas_mun, areas_estados
+        # dados demográficos agregados do Brasil por sexo
+        DATAFILE_DEMOBR = r'br_demografia.csv'
+        DATAFILE_DEMOBR_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DEMOBR)
+
+        demo_br = pd.read_csv(DATAFILE_DEMOBR_io, sep=';')
+
+        # dados demográficos agregados do Brasil por município
+        DATAFILE_DEMOMUN = r'mun_demografia.csv'
+        DATAFILE_DEMOMUN_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DEMOMUN)
+
+        demo_mun = pd.read_csv(DATAFILE_DEMOMUN_io, sep=';')
+
+        return covid, areas_mun, areas_estados, demo_br, demo_mun
 
     def preproc(self):
         """
@@ -85,15 +100,15 @@ class covid_brasil:
         :return: None
         """
 
-        # processar datas
+        # covidbr: processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
 
-        # deletar nomes que tenham valores NA
+        # areas: deletar nomes que tenham valores NA
         # são valores no excel que estão fora das tabelas e que não tem relevância
         self.areas.dropna(inplace = True)
         self.areas_estados.dropna(inplace = True)
 
-        # renomear colunas
+        # areas: renomear colunas
         dict_rename_areas = {
             'CD_GCUF': 'coduf',
             'NM_UF': 'estado_nome',
@@ -113,15 +128,43 @@ class covid_brasil:
         self.areas.rename(columns = dict_rename_areas, inplace = True)
         self.areas_estados.rename(columns = dict_rename_areas_estados, inplace = True)
 
-        # acertar tipos das colunas
+        # areas: acertar tipos das colunas
         self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(int)
         self.areas_estados.coduf = self.areas_estados.coduf.astype(int)
 
-        # trocar indice ID por indice (estado, municipio) ou estado
+        # areas: trocar indice ID por indice (estado, municipio) ou estado
         self.areas.set_index(keys=['estado', 'municipio'], inplace=True)
         self.areas.drop(columns='ID', inplace=True)
         self.areas_estados.set_index(keys='estado', inplace=True)
         self.areas_estados.drop(columns='ID', inplace=True)
+
+        # demobr: eliminar duas ultimas linhas (total e linha aleatória)
+        self.demobr.iloc[-2:] = np.nan
+        self.demobr.dropna(inplace=True)
+
+        # demobr: renomear colunas
+        dict_rename_demobr = {
+            'Idade simples': 'idade',
+            'Masculino': 'masculino',
+            'Feminino': 'feminino',
+            'Total': 'total'
+        }
+        self.demobr.rename(columns = dict_rename_demobr, inplace=True)
+
+        # demobr: transformar 'idade' em int
+        self.demobr['idade'] = self.demobr['idade'].str.split(' ', n=1, expand=True)
+        self.demobr.iloc[-1,0] += '+'
+        self.demobr['idade'] = self.demobr['idade'].astype('category')
+
+        # demobr: alterar tipos das colunas
+        self.demobr[['masculino', 'feminino', 'total']] = self.demobr[['masculino', 'feminino', 'total']].astype(int)
+
+        # demobr: alterar indice
+        self.demobr.set_index(keys='idade', inplace=True)
+
+        # demomun: eliminar duas últimas linhas (total e linha aleatória)
+        self.demomun.iloc[-2:] = np.nan
+        self.demomun.dropna(inplace=True)
 
     def transform(self):
         """
@@ -200,7 +243,7 @@ class covid_brasil:
             casos e óbitos de cada estado.
 
             Os dados divulgados pelo Ministério da Saúde cortam o último dígito do código
-            do município nas datas pré-20/05, de forma que a classificação do município fica prejudicada.
+            do município nas datas pós-20/05, de forma que a classificação do município fica prejudicada.
 
             A lógica de classificação dos dados municipais faltantes já foi parcialmente implementada
             na função `substituir_nomes`, especificamente a parte em que o codmun é EE0000. Logo,
@@ -228,15 +271,16 @@ class covid_brasil:
 
                 3) realizar o LEFT JOIN e limpar as colunas.
                     Após esse passo, teremos, para um mesmo município, dois codmun. No exemplo acima,
-                    Adamantina terá codmun 350010 e 3500105.
-                    Lembrar de sort() a coluna `data`
+                    Adamantina será associadas a dois codmun, 350010 e 3500105.
 
                 4) sanear o dataframe resultante para eliminar essa dupla codificação
                     através de um GroupBy inteligente
 
                 5) sanear o resto do dataframe resultante
-                    O saneamento consiste somente de dropar as colunas que foram criadas como
-                    resultado intermediário desse processo.
+                    O saneamento consiste de
+                    5a) dropar as colunas que foram criadas como resultado intermediário desse
+                        processo.
+                    5b) aplicar sort() à coluna `data`
 
         :return: None
         """
@@ -250,8 +294,9 @@ class covid_brasil:
                             'nomeRegiaoSaude', 'populacaoTCU2019']
         municipios_conhecidos = self.covidbr[mask_municipios_conhecidos][municipios_attrs]
 
-        # para haver um registro por município
+        # para haver só um registro por município
         municipios_conhecidos = municipios_conhecidos.groupby('codmun').first()
+        # obs.: o index de municipios_conhecidos agora é ['codmun'], diferente de self.covidbr (index genérico)
 
         # passo 2
         self.covidbr['codmun_10'] = self.covidbr['codmun']//10
