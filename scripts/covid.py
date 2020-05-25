@@ -39,7 +39,8 @@ class covid_brasil:
         if diretorio is None:
             diretorio = r'..'
 
-        self.covidbr = self.ler_dados(diretorio)
+        self.covidbr, self.areas, self.areas_estados = self.ler_dados(diretorio)
+        self.check = [62810, 6810, 2011, 2014, 88, 0]
         self.preproc()
         self.transform()
         if graficos:
@@ -50,13 +51,17 @@ class covid_brasil:
 
     def ler_dados(self, diretorio):
         """
-        ler os dados da planilha excel exposta diariamente por https://covid.saude.gov.br/
+        ler os dados
+            1) da planilha excel exposta diariamente por https://covid.saude.gov.br/
+            2) de dados geográficos (áreas de municípios e estados) brasileiros
 
-        :param diretorio: o diretório contendo o arquivo excel
-        :return: um dataframe contendo as informações do arquivo excel
+        :param diretorio: o diretório contendo os arquivos excel
+        :return: dataframes contendo as informações dos arquivos excel
         """
 
+        # dados da evolução da COVID-19
         DATAFILE = r'HIST_PAINEL_COVIDBR_'
+        DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
 
         today = dt.date.today()
         last_day = today + dt.timedelta(days = -1)
@@ -64,7 +69,16 @@ class covid_brasil:
         DATAFILE_DATE = DATAFILE + dt.date.strftime(last_day, "%d%b%Y") + r'.xlsx'
         DATAFILE_DATA_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DATE)
 
-        return pd.read_excel(DATAFILE_DATA_io)
+        covid = pd.read_excel(DATAFILE_DATA_io)
+
+        # dados geográficos
+        DATAFILE_GEO_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_GEO)
+
+        areas_mun = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_MUN_2019')
+
+        areas_estados = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_UF_2019')
+
+        return covid, areas_mun, areas_estados
 
     def preproc(self):
         """
@@ -72,7 +86,43 @@ class covid_brasil:
         :return: None
         """
 
+        # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
+
+        # deletar nomes que tenham valores NA
+        # são valores no excel que estão fora das tabelas e que não tem relevância
+        self.areas.dropna(inplace = True)
+        self.areas_estados.dropna(inplace = True)
+
+        # renomear colunas
+        dict_rename_areas = {
+            'CD_GCUF': 'coduf',
+            'NM_UF': 'estado_nome',
+            'NM_UF_SIGLA': 'estado',
+            'CD_GCMUN': 'codmun',
+            'NM_MUN_2019': 'municipio',
+            'AR_MUN_2019': 'area'
+        }
+
+        dict_rename_areas_estados = {
+            'CD_GCUF': 'coduf',
+            'NM_UF': 'estado_nome',
+            'NM_UF_SIGLA': 'estado',
+            'AR_MUN_2019': 'area'
+        }
+
+        self.areas.rename(columns = dict_rename_areas, inplace = True)
+        self.areas_estados.rename(columns = dict_rename_areas_estados, inplace = True)
+
+        # acertar tipos das colunas
+        self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(int)
+        self.areas_estados.coduf = self.areas_estados.coduf.astype(int)
+
+        # trocar indice ID por indice (estado, municipio) ou estado
+        self.areas.set_index(keys=['estado', 'municipio'], inplace=True)
+        self.areas.drop(columns='ID', inplace=True)
+        self.areas_estados.set_index(keys='estado', inplace=True)
+        self.areas_estados.drop(columns='ID', inplace=True)
 
     def transform(self):
         """
@@ -91,6 +141,7 @@ class covid_brasil:
 
         # transformações
         self.substituir_nomes()
+        self.consertar_municipios()
         self.dias_desde_caso_0()
         self.casos_obitos_novos()
         self.casos_obitos_ultima_semana()
@@ -107,7 +158,6 @@ class covid_brasil:
         self.mask_exc_resumo = ~self.covidbr['municipio'].isin(['Brasil', 'RESUMO'])
         self.mask_exc_resumo_rel = ~self.covidrel['municipio'].isin(['Brasil', 'RESUMO'])
 
-
     def substituir_nomes(self):
         """
         substituir nomes relevantes:
@@ -121,14 +171,111 @@ class covid_brasil:
         :return: None
         """
 
-        mask_forademunicipios = (self.covidbr['municipio'].isnull() & ~self.covidbr['codmun'].isnull())
+        self.mask_forademunicipios = ((self.covidbr['municipio'].isnull()) &
+                                 (~self.covidbr['codmun'].isnull()) &
+                                 (self.covidbr['codmun'] < 999999) &
+                                 (self.covidbr['codmun'] > 99999) &
+                                 (self.covidbr['codmun'] % 10**4 == 0))
         mask_resumo_estado = (self.covidbr['municipio'].isnull() & self.covidbr['codmun'].isnull())
         mask_resumo_brasil = (self.covidbr['estado'].isnull())
 
-        self.covidbr.loc[self.covidbr[mask_forademunicipios].index, 'municipio'] = 'SEM MUNICÍPIO'
+        self.covidbr.loc[self.covidbr[self.mask_forademunicipios].index, 'municipio'] = 'SEM MUNICÍPIO'
         self.covidbr.loc[self.covidbr[mask_resumo_estado].index, 'municipio'] = 'RESUMO'
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'municipio'] = 'Brasil'
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'estado'] = 'Brasil'
+
+    def consertar_municipios(self):
+        """
+        consertar dados de municipios
+            em 21/05/2020, os dados divulgados pelo Ministério da Saúde mudaram. Entre as mudanças,
+            os dados pré-20/05 dos municípios passaram a não ser categorizados como tal.
+            Essa é uma tentativa de massagear os dados para categorizar corretamente os dados municipais.
+
+            o código de municipio (codmun) é formado por
+                EECCCCC
+            onde os dois primeiros dígitos são o código do estado e os cinco últimos dígitos correspondem
+            ao município. A exceção é EE0000, utilizado para indicar que a doença foi registrada no
+            estado, porém sem um município associado.
+
+            Observa-se que, nos casos em que há um estado mas não há codmun, trata-se de uma soma dos
+            casos e óbitos de cada estado.
+
+            Os dados divulgados pelo Ministério da Saúde cortam o último dígito do código
+            do município nas datas pré-20/05, de forma que a classificação do município fica prejudicada.
+
+            A lógica de classificação dos dados municipais faltantes já foi parcialmente implementada
+            na função `substituir_nomes`, especificamente a parte em que o codmun é EE0000. Logo,
+            só os nomes de municípios NA é que faltam classificar.
+
+            Assim, a estratégia para consertar os dados municipais será fazer um LEFT JOIN entre o
+            dataframe self.covidbr e um dataframe contendo registros com dados municipais. Dessa forma,
+            onde não houver dados estes serão preenchidos com o valor do dataframe à direita.
+            Ex.: Adamantina, SP, codmun = 3500105. Em algumas linhas registrou-se o codmun de Adamantina
+                 como 350010; nestas linhas há dados municipais. No entanto, em outras linhas,
+                 registrou-se o codmun de Adamantina como 3500105; nestas linhas não há dados municipais.
+                 Após o LEFT JOIN, as linhas em que não há dados municipais (codmun 3500105), os mesmos
+                 serão preenchidos.
+
+            Logo, o procedimento deve ser
+                1) compilar um dataframe com registros com dados municipais (municipios_conhecidos):
+                    linhas em que o município não é NaN mas não está na lista dos municipios
+                    extras ('Brasil', 'RESUMO', 'SEM MUNICÍPIO')
+
+                2) no dataframe original, calcular uma coluna codmun_10 = codmun // 10.
+                    Nesse caso, aplicar-se-á a todas as linhas, incluindo as que tem registro. No ex
+                    acima, a linha em que há registro de Adamantina (codmun 350010), o codmun_10
+                    ficaria como 35001. No entanto, nessas linhas o codmun é irrelevante, pois
+                    já tem dados municipais.
+
+                3) realizar o LEFT JOIN e limpar as colunas.
+                    Após esse passo, teremos, para um mesmo município, dois codmun. No exemplo acima,
+                    Adamantina terá codmun 350010 e 3500105.
+
+                4) sanear o dataframe resultante para eliminar essa dupla codificação
+                    através de um GroupBy inteligente
+
+                5) sanear o resto do dataframe resultante
+                    O saneamento consiste somente de dropar as colunas que foram criadas como
+                    resultado intermediário desse processo.
+
+        :return: None
+        """
+
+        # passo 1
+        municipios_extras = ['Brasil', 'RESUMO', 'SEM MUNICÍPIO']
+        mask_municipios_conhecidos = ((~self.covidbr['municipio'].isnull()) &
+                                      (~self.covidbr['municipio'].isin(municipios_extras))
+                                      )
+        municipios_attrs = ['codmun', 'municipio', 'codRegiaoSaude',
+                            'nomeRegiaoSaude', 'populacaoTCU2019']
+        municipios_conhecidos = self.covidbr[mask_municipios_conhecidos][municipios_attrs]
+
+        # para haver um registro por município
+        municipios_conhecidos = municipios_conhecidos.groupby('codmun').first()
+
+        # passo 2
+        self.covidbr['codmun_10'] = self.covidbr['codmun']//10
+
+        # passo 3
+        self.covidbr = \
+            self.covidbr.merge(municipios_conhecidos,
+                               left_on='codmun_10', right_on='codmun', how='left')
+
+        for col in municipios_attrs:
+            if col == 'codmun':
+                continue
+
+            self.covidbr[col] = self.covidbr[col + '_x'].mask(
+                cond = self.covidbr[col + '_x'].isnull(),
+                other = self.covidbr[col + '_y'])
+
+        # passo 4
+        self.covidbr['codmun'] = self.covidbr.groupby(self.agrupar_full)['codmun'].apply(
+            lambda x: pd.Series(max(pd.unique(x)), index=x.index))
+
+        # passo 5
+        self.covidbr.drop(columns = [ c for c in self.covidbr.columns if '_' in c ], inplace=True)
+
 
     def dias_desde_caso_0(self):
         """
@@ -515,8 +662,8 @@ class covid_brasil:
         return axs
 
     def graficos(self,
-                 estados = ['RJ', 'SP', 'AM', 'Brasil'],
-                 municipios = ['Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil']):
+                 estados = ('RJ', 'SP', 'AM', 'Brasil'),
+                 municipios = ('Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil')):
         """
         plotar gráficos
         :return: None
@@ -528,7 +675,7 @@ class covid_brasil:
         # executar todas as funções no escopo atual começando por 'graf_'
 
         func_grafs = [ v for k,v in self.__class__.__dict__.items()
-                       if k.startswith('graf_') and not k.endswith('_municipios')]
+                       if k.startswith('graf_') ]
 
         self.eixos = []
 
@@ -542,7 +689,7 @@ class covid_brasil:
             self.eixos += axs
 
 
-br = covid_brasil(diretorio = None, graficos = False)
+br = covid_brasil(diretorio = None, graficos = True)
 
 cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
 cbr = cbr.drop(columns=['municipio', 'codmun'])
