@@ -167,6 +167,31 @@ class covid_brasil:
         self.demomun.dropna(inplace=True)
 
         # demomun: renomear colunas
+        dict_rename_demomun = dict(zip(
+            self.demomun.columns[1:-2],
+            self.demomun.columns[1:-2].str.replace('a','_').str.split(' ', n=3).str[0:-1].str.join('')
+        ))
+
+        dict_rename_demomun.update({
+            self.demomun.columns[-2]: self.demomun.columns[-2].split(' ')[0] + '+'
+        })
+
+        dict_rename_demomun.update({
+            'Município': 'codmun_10_municipio',
+            'Total': 'total'
+        })
+        self.demomun.rename(columns = dict_rename_demomun, inplace=True)
+
+        # demomun: separar colunas codmun_10 e municipio
+        self.demomun[['codmun_10', 'municipio']] = self.demomun['codmun_10_municipio'].str.split(' ', n=1, expand=True)
+        self.demomun.set_index(keys='codmun_10', inplace=True)
+        self.demomun.drop(columns='codmun_10_municipio', inplace=True)
+
+        # demomun: reordenar colunas
+        self.demomun = self.demomun.reindex(
+            columns=np.hstack([self.demomun.columns.values[-1:], self.demomun.columns.values[:-1]])
+        )
+
 
     def transform(self):
         """
