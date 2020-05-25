@@ -166,6 +166,8 @@ class covid_brasil:
         self.demomun.iloc[-2:] = np.nan
         self.demomun.dropna(inplace=True)
 
+        # demomun: renomear colunas
+
     def transform(self):
         """
         transformação dos dados. Engloba várias transformações
