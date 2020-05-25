@@ -60,18 +60,17 @@ class covid_brasil:
         """
 
         # dados da evolução da COVID-19
-        DATAFILE = r'HIST_PAINEL_COVIDBR_'
-        DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
-
-        today = dt.date.today()
-        last_day = today + dt.timedelta(days = -1)
-
-        DATAFILE_DATE = DATAFILE + dt.date.strftime(last_day, "%d%b%Y") + r'.xlsx'
-        DATAFILE_DATA_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DATE)
+        # abrir planilha com data de modificação mais recente
+        xlsx_files = [ os.path.join(diretorio, r'data', r'Brasil', f)
+                        for f in os.listdir(os.path.join(diretorio, r'data', r'Brasil'))
+                        if f.endswith('.xlsx') ]
+        xlsx_files.sort(key=lambda x:os.path.getmtime(x))
+        DATAFILE_DATA_io = xlsx_files[-1]
 
         covid = pd.read_excel(DATAFILE_DATA_io)
 
-        # dados geográficos
+        # dados geográficos dos territórios brasileiros
+        DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
         DATAFILE_GEO_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_GEO)
 
         areas_mun = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_MUN_2019')
