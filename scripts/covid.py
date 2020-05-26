@@ -263,7 +263,10 @@ class covid_brasil:
 
         # transformações
         self.substituir_nomes()
-        self.consertar_municipios()
+
+        # função tornada desnecessária em 25/05
+        # self.consertar_municipios()
+
         self.dias_desde_caso_0()
         self.casos_obitos_novos()
         self.casos_obitos_ultima_semana()
@@ -309,6 +312,8 @@ class covid_brasil:
     def consertar_municipios(self):
         """
         consertar dados de municipios
+        EDIT: em 25/05 o Ministério da Saúde consertou os dados. Essa função não é mais necessária.
+
             em 21/05/2020, os dados divulgados pelo Ministério da Saúde mudaram. Entre as mudanças,
             os dados pré-20/05 dos municípios passaram a não ser categorizados como tal.
             Essa é uma tentativa de massagear os dados para categorizar corretamente os dados municipais.
