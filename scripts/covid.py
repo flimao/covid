@@ -94,21 +94,25 @@ class covid_brasil:
 
         return covid, areas_mun, areas_estados, demo_br, demo_mun
 
-    def preproc(self):
+    def __preproc_covid(self):
         """
-        pre-processamento dos dados
+        pre-processamento dos dados brasileiros da doenca
         :return: None
         """
-
-        # covidbr: processar datas
+        # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
 
-        # areas: deletar nomes que tenham valores NA
+    def __preproc_areas(self):
+        """
+        pre-processamento dos dados geográficos brasileiros
+        :return: None
+        """
+        # deletar nomes que tenham valores NA
         # são valores no excel que estão fora das tabelas e que não tem relevância
-        self.areas.dropna(inplace = True)
-        self.areas_estados.dropna(inplace = True)
+        self.areas.dropna(inplace=True)
+        self.areas_estados.dropna(inplace=True)
 
-        # areas: renomear colunas
+        # renomear colunas
         dict_rename_areas = {
             'CD_GCUF': 'coduf',
             'NM_UF': 'estado_nome',
@@ -125,24 +129,29 @@ class covid_brasil:
             'AR_MUN_2019': 'area'
         }
 
-        self.areas.rename(columns = dict_rename_areas, inplace = True)
-        self.areas_estados.rename(columns = dict_rename_areas_estados, inplace = True)
+        self.areas.rename(columns=dict_rename_areas, inplace=True)
+        self.areas_estados.rename(columns=dict_rename_areas_estados, inplace=True)
 
-        # areas: acertar tipos das colunas
+        # acertar tipos das colunas
         self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(int)
         self.areas_estados.coduf = self.areas_estados.coduf.astype(int)
 
-        # areas: trocar indice ID por indice (estado, municipio) ou estado
+        # trocar indice ID por indice (estado, municipio) ou estado
         self.areas.set_index(keys=['estado', 'municipio'], inplace=True)
         self.areas.drop(columns='ID', inplace=True)
         self.areas_estados.set_index(keys='estado', inplace=True)
         self.areas_estados.drop(columns='ID', inplace=True)
 
-        # demobr: eliminar duas ultimas linhas (total e linha aleatória)
+    def __preproc_demobr(self):
+        """
+        pre-processamento dos dados demográficos brasileiros
+        :return: None
+        """
+        # eliminar duas ultimas linhas (total e linha aleatória)
         self.demobr.iloc[-2:] = np.nan
         self.demobr.dropna(inplace=True)
 
-        # demobr: renomear colunas
+        # renomear colunas
         dict_rename_demobr = {
             'Idade simples': 'idade',
             'Masculino': 'masculino',
@@ -151,25 +160,33 @@ class covid_brasil:
         }
         self.demobr.rename(columns = dict_rename_demobr, inplace=True)
 
-        # demobr: transformar 'idade' em int
+        # transformar 'idade' em int
         self.demobr['idade'] = self.demobr['idade'].str.split(' ', n=1, expand=True)
         self.demobr.iloc[-1,0] += '+'
         self.demobr['idade'] = self.demobr['idade'].astype('category')
 
-        # demobr: alterar tipos das colunas
+        # alterar tipos das colunas
         self.demobr[['masculino', 'feminino', 'total']] = self.demobr[['masculino', 'feminino', 'total']].astype(int)
 
-        # demobr: alterar indice
+        # alterar indice
         self.demobr.set_index(keys='idade', inplace=True)
 
-        # demomun: eliminar duas últimas linhas (total e linha aleatória)
+    def __preproc_demomun(self):
+        """
+        pre-processamento dos dados demográficos brasileiros municipais
+        :return: None
+        """
+        # eliminar duas últimas linhas (total e linha aleatória)
         self.demomun.iloc[-2:] = np.nan
         self.demomun.dropna(inplace=True)
 
-        # demomun: renomear colunas
+        # substituir '-' por 0
+        self.demomun.replace('-', 0, inplace=True)
+
+        # renomear colunas
         dict_rename_demomun = dict(zip(
             self.demomun.columns[1:-2],
-            self.demomun.columns[1:-2].str.replace('a','_').str.split(' ', n=3).str[0:-1].str.join('')
+            self.demomun.columns[1:-2].str.replace('a', '_').str.split(' ', n=3).str[0:-1].str.join('')
         ))
 
         dict_rename_demomun.update({
@@ -178,20 +195,56 @@ class covid_brasil:
 
         dict_rename_demomun.update({
             'Município': 'codmun_10_municipio',
-            'Total': 'total'
+            'Total': 'pop_total_2015'
         })
-        self.demomun.rename(columns = dict_rename_demomun, inplace=True)
+        self.demomun.rename(columns=dict_rename_demomun, inplace=True)
 
-        # demomun: separar colunas codmun_10 e municipio
+        # separar colunas codmun_10 e municipio
         self.demomun[['codmun_10', 'municipio']] = self.demomun['codmun_10_municipio'].str.split(' ', n=1, expand=True)
         self.demomun.set_index(keys='codmun_10', inplace=True)
         self.demomun.drop(columns='codmun_10_municipio', inplace=True)
 
-        # demomun: reordenar colunas
+        # acertar tipos das colunas
+        self.demomun.loc[:, :'pop_total_2015'] = self.demomun.loc[:, :'pop_total_2015'].astype(int)
+
+        # reordenar colunas
         self.demomun = self.demomun.reindex(
-            columns=np.hstack([self.demomun.columns.values[-1:], self.demomun.columns.values[:-1]])
+            columns=np.hstack([self.demomun.columns.values[::-1][:2],
+                               self.demomun.columns[:-2]])
         )
 
+        # processar colunas: ao inves de um dataframe largo com as faixas etarias como colunas, colocar uma coluna
+        # chamada 'faixa_etaria'
+
+        self.demomun.reset_index(inplace=True)
+        self.demomun = self.demomun.melt(
+            id_vars=['codmun_10', 'municipio', 'pop_total_2015'],
+            var_name='faixa_etaria', value_name='populacao'
+        )
+        self.demomun = self.demomun.groupby(by=['codmun_10', 'faixa_etaria']).first()
+
+        # calcular % de velho
+        velhos = self.demomun.loc[(slice(None), slice('60_69', '80+')), :].groupby(level='codmun_10')['populacao'].sum()
+
+        pop_total = self.demomun.groupby(level='codmun_10')['populacao'].sum()
+
+        pct_velhos = velhos / pop_total
+
+        self.demo_velhos = pd.concat([velhos, pop_total, pct_velhos], axis=1)
+        self.demo_velhos.columns = ['pop_velhos', 'pop_total_2015', 'pct_velhos']
+
+    def preproc(self):
+        """
+        pre-processamento dos dados
+        rodar todas as funções cujo nome começa por '__preproc'
+        :return: None
+        """
+
+        func_preproc = [ v for k, v in self.__class__.__dict__.items()
+                           if k.startswith('_covid_brasil__preproc') ] # mangling
+
+        for f in func_preproc:
+            _ = f(self)
 
     def transform(self):
         """
