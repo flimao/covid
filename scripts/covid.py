@@ -524,7 +524,7 @@ class covid_brasil:
         :return: None
         """
 
-        pass
+        self.covidbr['norm_demo'] = 1 / self.covidbr['pct_velhos']
 
     def __norm_conectividade(self):
         """
