@@ -99,8 +99,15 @@ class covid_brasil:
         pre-processamento dos dados brasileiros da doenca
         :return: None
         """
+
         # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
+
+        # converter tipos
+        self.covidbr = self.covidbr.astype(
+            { converter: 'Int64' for converter in ['coduf', 'codmun', 'codRegiaoSaude', 'populacaoTCU2019',
+                      'Recuperadosnovos', 'emAcompanhamentoNovos'] }
+        )
 
     def __preproc_areas(self):
         """
@@ -194,18 +201,23 @@ class covid_brasil:
         })
 
         dict_rename_demomun.update({
-            'Município': 'codmun_10_municipio',
+            'Município': 'codmun_municipio',
             'Total': 'pop_total_2015'
         })
         self.demomun.rename(columns=dict_rename_demomun, inplace=True)
 
         # separar colunas codmun_10 e municipio
-        self.demomun[['codmun_10', 'municipio']] = self.demomun['codmun_10_municipio'].str.split(' ', n=1, expand=True)
-        self.demomun.set_index(keys='codmun_10', inplace=True)
-        self.demomun.drop(columns='codmun_10_municipio', inplace=True)
+        self.demomun[['codmun', 'municipio']] = self.demomun['codmun_municipio'].str.split(' ', n=1, expand=True)
+        self.demomun['codmun'] = self.demomun['codmun'].astype(float).astype('Int64')
+        self.demomun.drop(columns='codmun_municipio', inplace=True)
 
         # acertar tipos das colunas
-        self.demomun.loc[:, :'pop_total_2015'] = self.demomun.loc[:, :'pop_total_2015'].astype(int)
+        self.demomun = self.demomun.astype(
+            { converter: 'float' for converter in self.demomun.loc[:, :'codmun'].columns }
+        )
+        self.demomun = self.demomun.astype(
+            { converter: 'Int32' for converter in self.demomun.loc[:, :'codmun'].columns }
+        )
 
         # reordenar colunas
         self.demomun = self.demomun.reindex(
@@ -216,22 +228,26 @@ class covid_brasil:
         # processar colunas: ao inves de um dataframe largo com as faixas etarias como colunas, colocar uma coluna
         # chamada 'faixa_etaria'
 
-        self.demomun.reset_index(inplace=True)
         self.demomun = self.demomun.melt(
-            id_vars=['codmun_10', 'municipio', 'pop_total_2015'],
+            id_vars=['codmun', 'municipio', 'pop_total_2015'],
             var_name='faixa_etaria', value_name='populacao'
         )
-        self.demomun = self.demomun.groupby(by=['codmun_10', 'faixa_etaria']).first()
+        self.demomun = self.demomun.groupby(by=['codmun', 'faixa_etaria']).first()
 
         # calcular % de velho
-        velhos = self.demomun.loc[(slice(None), slice('60_69', '80+')), :].groupby(level='codmun_10')['populacao'].sum()
+        velhos = self.demomun.loc[(slice(None), slice('60_69', '80+')), :].groupby(level='codmun')['populacao'].sum()
 
-        pop_total = self.demomun.groupby(level='codmun_10')['populacao'].sum()
+        pop_total = self.demomun.groupby(level='codmun')['populacao'].sum()
 
         pct_velhos = velhos / pop_total
 
         self.demo_velhos = pd.concat([velhos, pop_total, pct_velhos], axis=1)
         self.demo_velhos.columns = ['pop_velhos', 'pop_total_2015', 'pct_velhos']
+
+        self.demo_velhos.astype({ l: 'Int64' for l in self.demo_velhos.columns[:1] })
+
+        # fazer LEFT JOIN self.covidbr <- self.demo_velhos através da coluna codmun
+        #self.covidbr = self.covidbr.merge(self.demo_velhos['pct_velhos'], on='codmun', how='left')
 
     def preproc(self):
         """
@@ -857,7 +873,7 @@ class covid_brasil:
         # executar todas as funções no escopo atual começando por 'graf_'
 
         func_grafs = [ v for k,v in self.__class__.__dict__.items()
-                       if k.startswith('_covid_brasil__graf') ]
+                       if k.startswith('_covid_brasil__graf') ] # mangling
 
         self.eixos = []
 
