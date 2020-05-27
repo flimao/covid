@@ -216,7 +216,7 @@ class covid_brasil:
             { converter: 'float' for converter in self.demomun.loc[:, :'codmun'].columns }
         )
         self.demomun = self.demomun.astype(
-            { converter: 'Int32' for converter in self.demomun.loc[:, :'codmun'].columns }
+            { converter: 'Int64' for converter in self.demomun.loc[:, :'codmun'].columns }
         )
 
         # reordenar colunas
@@ -244,10 +244,17 @@ class covid_brasil:
         self.demo_velhos = pd.concat([velhos, pop_total, pct_velhos], axis=1)
         self.demo_velhos.columns = ['pop_velhos', 'pop_total_2015', 'pct_velhos']
 
-        self.demo_velhos.astype({ l: 'Int64' for l in self.demo_velhos.columns[:1] })
+        # resetar index para facilitar trabalho com a coluna 'codmun'
+        self.demo_velhos = self.demo_velhos.reset_index()
+
+        # acertar tipos das colunas de demo_velhos
+        self.demo_velhos = self.demo_velhos.astype(
+            {l: 'Int64' for l in self.demo_velhos.columns[:-1]}
+        )
+        #self.demo_velhos.index = self.demo_velhos.index.astype('Int64')
 
         # fazer LEFT JOIN self.covidbr <- self.demo_velhos através da coluna codmun
-        #self.covidbr = self.covidbr.merge(self.demo_velhos['pct_velhos'], on='codmun', how='left')
+        self.covidbr = self.covidbr.merge(self.demo_velhos[['codmun','pct_velhos']], on='codmun', how='left')
 
     def preproc(self):
         """
