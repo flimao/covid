@@ -260,16 +260,27 @@ class covid_brasil:
              index = pd.Index([76], name='coduf')
         )
 
+        # juntar estados e Brasil
         velhos_estados = pd.concat([velhos_estados, velhos_br])
 
         # acertar tipos das colunas de demo_velhos
         self.demo_velhos = self.demo_velhos.astype(
-            {l: 'Int64' for l in self.demo_velhos.columns[:-1]}
+            {l: 'Int64' for l in self.demo_velhos.loc[:,:'pop_total_2015'].columns}
         )
-        #self.demo_velhos.index = self.demo_velhos.index.astype('Int64')
+
+        # fazer LEFT JOIN. Primeiro fazer dos estados e depois dos municípios. Dessa forma todos estarão preenchidos.
+        # fazer LEFT JOIN self.covidbr <- velhos_estados através da coluna coduf
+        intermediario = self.covidbr.merge(velhos_estados, on='coduf', how='left')
 
         # fazer LEFT JOIN self.covidbr <- self.demo_velhos através da coluna codmun
-        self.covidbr = self.covidbr.merge(self.demo_velhos[['codmun','pct_velhos']], on='codmun', how='left')
+        intermediario = intermediario.merge(self.demo_velhos[['codmun','pct_velhos']], on='codmun', how='left',
+                                          suffixes=('_uf', '_mun'))
+
+        # arrumar a coluna pct_velhos
+        # os dois LEFT JOIN deixaram duas colunas, pct_velhos_uf e e pct_velhos_mun. Onde há pct_velhos_mun, usa-se
+        # este. Caso contrário, usa-se o pct_velhos_uf.
+        self.covidbr['pct_velhos'] = intermediario['pct_velhos_mun'].where(~intermediario['pct_velhos_mun'].isnull(),
+                                                                          other = intermediario['pct_velhos_uf'])
 
     def preproc(self):
         """
