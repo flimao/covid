@@ -270,7 +270,11 @@ class covid_brasil:
         self.dias_desde_caso_0()
         self.casos_obitos_novos()
         self.casos_obitos_ultima_semana()
-        self.casos_obitos_percapita()
+
+        # normalização
+        self.normalizacao()
+
+        # cálculos das estatísticas
         self.incidencia()
         self.letalidade()
         self.mortalidade()
@@ -434,21 +438,69 @@ class covid_brasil:
         self.covidbr['obitos_7d'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff(7).fillna(0)
         self.covidbr['casos_7d'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff(7).fillna(0)
 
-    def casos_obitos_percapita(self):
+    def __norm_casos_obitos_percapita(self):
         """
-        casos e óbitos por milhão de habitantes
+        calcula o fator de normalização para considerar casos e óbitos por milhão de habitantes
+
         :return: None
         """
 
-        self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['norm_percapita'] = 1 / (self.covidbr['populacaoTCU2019'] / (10**6))
 
-        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] / \
-                                          (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] * self.covidbr['norm_percapita']
+        self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] * self.covidbr['norm_percapita']
 
-        self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] * self.covidbr['norm_percapita']
+        self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] * self.covidbr['norm_percapita']
+
+        self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] * self.covidbr['norm_percapita']
+        self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] * self.covidbr['norm_percapita']
+
+    def __norm_densidade_demografica(self):
+        """
+        calcula o fator de normalização para a densidade demográfica
+            - (# casos ou # obitos) / (populacao / area) = (# casos ou # obitos) * area / populacao
+            - essencialmente o fator de normalização per capita * área de cada municipio
+
+        :return: None
+        """
+
+        pass
+
+    def __norm_perfil_demografico(self):
+        """
+        calcula o fator de normalização para o % de idosos na população de cada município
+            - (# casos ou # obitos) / (% idosos)
+
+        :return: None
+        """
+
+        pass
+
+    def __norm_conectividade(self):
+        """
+        calcula o fator de normalizacao para a medida de conectividade de cada cidade, região, etc
+
+        :return:
+        """
+
+        pass
+
+    def normalizacao(self):
+        """
+        calcular fatores de normalização
+            - normalização per capita
+            - TODO: normalização por densidade populacional
+            - TODO: normalização por % velhos na população
+            - TODO: normalização por conectividade
+
+        :return: None
+        """
+        func_norm = [v for k, v in self.__class__.__dict__.items()
+                        if k.startswith('_covid_brasil__norm')]  # mangling
+
+        for f in func_norm:
+            _ = f(self)
 
     def suavizacao(self, janela_mm = mm_periodo):
         """
