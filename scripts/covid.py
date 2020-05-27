@@ -247,6 +247,21 @@ class covid_brasil:
         # resetar index para facilitar trabalho com a coluna 'codmun'
         self.demo_velhos = self.demo_velhos.reset_index()
 
+        # atualizar % velhos nos estados
+        self.demo_velhos['coduf'] = self.demo_velhos['codmun'] // 10 ** 4
+        velhos_estados = self.demo_velhos.groupby('coduf')['pop_velhos'].sum() / \
+                         self.demo_velhos.groupby('coduf')['pop_total_2015'].sum()
+        velhos_estados.name = 'pct_velhos'
+
+        # atualizar % velhos no Brasil
+        velhos_br = pd.Series(
+             self.demo_velhos['pop_velhos'].sum() / self.demo_velhos['pop_total_2015'].sum(),
+             name = 'pct_velhos',
+             index = pd.Index([76], name='coduf')
+        )
+
+        velhos_estados = pd.concat([velhos_estados, velhos_br])
+
         # acertar tipos das colunas de demo_velhos
         self.demo_velhos = self.demo_velhos.astype(
             {l: 'Int64' for l in self.demo_velhos.columns[:-1]}
