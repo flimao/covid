@@ -523,7 +523,7 @@ class covid_brasil:
         self.covidbr['mortalidade'] = self.covidbr['obitosAcumulado'] / \
                                      (self.covidbr['populacaoTCU2019'] / (10**5))
 
-    def graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
+    def __graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -552,7 +552,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municipios
@@ -579,7 +579,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados):
+    def __graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -608,7 +608,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios):
+    def __graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -636,7 +636,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -661,7 +661,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -687,7 +687,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -713,7 +713,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
+    def __graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -739,7 +739,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_novos_por_dias_pandemia_estados(self, data_estados):
+    def __graf_casos_novos_por_dias_pandemia_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -765,7 +765,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios):
+    def __graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -805,7 +805,7 @@ class covid_brasil:
         # executar todas as funções no escopo atual começando por 'graf_'
 
         func_grafs = [ v for k,v in self.__class__.__dict__.items()
-                       if k.startswith('graf_') ]
+                       if k.startswith('_covid_brasil__graf') ]
 
         self.eixos = []
 
