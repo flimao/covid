@@ -3,6 +3,7 @@
 
 #import numpy as np
 #import scipy.stats as spst
+import numpy as np
 import pandas as pd
 import os.path
 import datetime as dt
@@ -26,21 +27,23 @@ class CustomTicker(LogFormatterSciNotation):
     def __call__(self, x, pos=None):
         return "{x:g}".format(x=x)
 
-
 class covid_brasil:
     """
     classe para leitura, processamento e pós-processamento dos dados brasileiros
     da COVID-19
     """
-    def __init__(self, diretorio = None, graficos=True):
+
+    def __init__(self, diretorio=None, graficos=True):
 
         # se diretorio for None, corresponde ao diretorio raiz do script
 
         if diretorio is None:
             diretorio = r'..'
 
-        self.covidbr, self.areas, self.areas_estados = self.ler_dados(diretorio)
+        self.covidbr, self.areas, self.areas_estados, self.demobr, self.demomun = self.ler_dados(diretorio)
+
         self.check = [62810, 6810, 2011, 2014, 88, 0]
+
         self.preproc()
         self.transform()
         if graficos:
@@ -60,39 +63,61 @@ class covid_brasil:
         """
 
         # dados da evolução da COVID-19
-        DATAFILE = r'HIST_PAINEL_COVIDBR_'
-        DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
-
-        today = dt.date.today()
-        last_day = today + dt.timedelta(days = -1)
-
-        DATAFILE_DATE = DATAFILE + dt.date.strftime(last_day, "%d%b%Y") + r'.xlsx'
-        DATAFILE_DATA_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DATE)
+        # abrir planilha com data de modificação mais recente
+        xlsx_files = [ os.path.join(diretorio, r'data', r'Brasil', f)
+                        for f in os.listdir(os.path.join(diretorio, r'data', r'Brasil'))
+                        if f.endswith('.xlsx') ]
+        xlsx_files.sort(key=lambda x:os.path.getmtime(x))
+        DATAFILE_DATA_io = xlsx_files[-1]
 
         covid = pd.read_excel(DATAFILE_DATA_io)
 
-        # dados geográficos
+        # dados geográficos dos territórios brasileiros
+        DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
         DATAFILE_GEO_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_GEO)
 
         areas_mun = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_MUN_2019')
 
         areas_estados = pd.read_excel(DATAFILE_GEO_io, sheet_name='AR_BR_UF_2019')
 
-        return covid, areas_mun, areas_estados
+        # dados demográficos agregados do Brasil por sexo
+        DATAFILE_DEMOBR = r'br_demografia.csv'
+        DATAFILE_DEMOBR_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DEMOBR)
 
-    def preproc(self):
+        demo_br = pd.read_csv(DATAFILE_DEMOBR_io, sep=';')
+
+        # dados demográficos agregados do Brasil por município
+        DATAFILE_DEMOMUN = r'mun_demografia.csv'
+        DATAFILE_DEMOMUN_io = os.path.join(diretorio, r'data', r'Brasil', DATAFILE_DEMOMUN)
+
+        demo_mun = pd.read_csv(DATAFILE_DEMOMUN_io, sep=';')
+
+        return covid, areas_mun, areas_estados, demo_br, demo_mun
+
+    def __preproc_covid(self):
         """
-        pre-processamento dos dados
+        pre-processamento dos dados brasileiros da doenca
         :return: None
         """
 
         # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
 
+        # converter tipos
+        self.covidbr = self.covidbr.astype(
+            { converter: 'Int64' for converter in ['coduf', 'codmun', 'codRegiaoSaude', 'populacaoTCU2019',
+                      'Recuperadosnovos', 'emAcompanhamentoNovos'] }
+        )
+
+    def __preproc_areas(self):
+        """
+        pre-processamento dos dados geográficos brasileiros
+        :return: None
+        """
         # deletar nomes que tenham valores NA
         # são valores no excel que estão fora das tabelas e que não tem relevância
-        self.areas.dropna(inplace = True)
-        self.areas_estados.dropna(inplace = True)
+        self.areas.dropna(inplace=True)
+        self.areas_estados.dropna(inplace=True)
 
         # renomear colunas
         dict_rename_areas = {
@@ -111,8 +136,8 @@ class covid_brasil:
             'AR_MUN_2019': 'area'
         }
 
-        self.areas.rename(columns = dict_rename_areas, inplace = True)
-        self.areas_estados.rename(columns = dict_rename_areas_estados, inplace = True)
+        self.areas.rename(columns=dict_rename_areas, inplace=True)
+        self.areas_estados.rename(columns=dict_rename_areas_estados, inplace=True)
 
         # acertar tipos das colunas
         self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(int)
@@ -123,6 +148,119 @@ class covid_brasil:
         self.areas.drop(columns='ID', inplace=True)
         self.areas_estados.set_index(keys='estado', inplace=True)
         self.areas_estados.drop(columns='ID', inplace=True)
+
+    def __preproc_demobr(self):
+        """
+        pre-processamento dos dados demográficos brasileiros
+        :return: None
+        """
+        # eliminar duas ultimas linhas (total e linha aleatória)
+        self.demobr.iloc[-2:] = np.nan
+        self.demobr.dropna(inplace=True)
+
+        # renomear colunas
+        dict_rename_demobr = {
+            'Idade simples': 'idade',
+            'Masculino': 'masculino',
+            'Feminino': 'feminino',
+            'Total': 'total'
+        }
+        self.demobr.rename(columns = dict_rename_demobr, inplace=True)
+
+        # transformar 'idade' em int
+        self.demobr['idade'] = self.demobr['idade'].str.split(' ', n=1, expand=True)
+        self.demobr.iloc[-1,0] += '+'
+        self.demobr['idade'] = self.demobr['idade'].astype('category')
+
+        # alterar tipos das colunas
+        self.demobr[['masculino', 'feminino', 'total']] = self.demobr[['masculino', 'feminino', 'total']].astype(int)
+
+        # alterar indice
+        self.demobr.set_index(keys='idade', inplace=True)
+
+    def __preproc_demomun(self):
+        """
+        pre-processamento dos dados demográficos brasileiros municipais
+        :return: None
+        """
+        # eliminar duas últimas linhas (total e linha aleatória)
+        self.demomun.iloc[-2:] = np.nan
+        self.demomun.dropna(inplace=True)
+
+        # substituir '-' por 0
+        self.demomun.replace('-', 0, inplace=True)
+
+        # renomear colunas
+        dict_rename_demomun = dict(zip(
+            self.demomun.columns[1:-2],
+            self.demomun.columns[1:-2].str.replace('a', '_').str.split(' ', n=3).str[0:-1].str.join('')
+        ))
+
+        dict_rename_demomun.update({
+            self.demomun.columns[-2]: self.demomun.columns[-2].split(' ')[0] + '+'
+        })
+
+        dict_rename_demomun.update({
+            'Município': 'codmun_municipio',
+            'Total': 'pop_total_2015'
+        })
+        self.demomun.rename(columns=dict_rename_demomun, inplace=True)
+
+        # separar colunas codmun_10 e municipio
+        self.demomun[['codmun', 'municipio']] = self.demomun['codmun_municipio'].str.split(' ', n=1, expand=True)
+        self.demomun['codmun'] = self.demomun['codmun'].astype(float).astype('Int64')
+        self.demomun.drop(columns='codmun_municipio', inplace=True)
+
+        # acertar tipos das colunas
+        self.demomun = self.demomun.astype(
+            { converter: 'float' for converter in self.demomun.loc[:, :'codmun'].columns }
+        )
+        self.demomun = self.demomun.astype(
+            { converter: 'Int32' for converter in self.demomun.loc[:, :'codmun'].columns }
+        )
+
+        # reordenar colunas
+        self.demomun = self.demomun.reindex(
+            columns=np.hstack([self.demomun.columns.values[::-1][:2],
+                               self.demomun.columns[:-2]])
+        )
+
+        # processar colunas: ao inves de um dataframe largo com as faixas etarias como colunas, colocar uma coluna
+        # chamada 'faixa_etaria'
+
+        self.demomun = self.demomun.melt(
+            id_vars=['codmun', 'municipio', 'pop_total_2015'],
+            var_name='faixa_etaria', value_name='populacao'
+        )
+        self.demomun = self.demomun.groupby(by=['codmun', 'faixa_etaria']).first()
+
+        # calcular % de velho
+        velhos = self.demomun.loc[(slice(None), slice('60_69', '80+')), :].groupby(level='codmun')['populacao'].sum()
+
+        pop_total = self.demomun.groupby(level='codmun')['populacao'].sum()
+
+        pct_velhos = velhos / pop_total
+
+        self.demo_velhos = pd.concat([velhos, pop_total, pct_velhos], axis=1)
+        self.demo_velhos.columns = ['pop_velhos', 'pop_total_2015', 'pct_velhos']
+
+        self.demo_velhos.astype({ l: 'Int64' for l in self.demo_velhos.columns[:1] })
+
+        # fazer LEFT JOIN self.covidbr <- self.demo_velhos através da coluna codmun
+        #self.covidbr = self.covidbr.merge(self.demo_velhos['pct_velhos'], on='codmun', how='left')
+
+    def preproc(self):
+        """
+        pre-processamento dos dados
+        rodar todas as funções cujo nome começa por '__preproc'
+        :return: None
+        """
+
+        func_preproc = [ v for k, v in self.__class__.__dict__.items()
+                           if k.startswith('_covid_brasil__preproc') ] # mangling
+
+        for f in func_preproc:
+            _ = f(self)
 
     def transform(self):
         """
@@ -141,11 +279,18 @@ class covid_brasil:
 
         # transformações
         self.substituir_nomes()
-        self.consertar_municipios()
+
+        # função tornada desnecessária em 25/05
+        # self.consertar_municipios()
+
         self.dias_desde_caso_0()
         self.casos_obitos_novos()
         self.casos_obitos_ultima_semana()
-        self.casos_obitos_percapita()
+
+        # normalização
+        self.normalizacao()
+
+        # cálculos das estatísticas
         self.incidencia()
         self.letalidade()
         self.mortalidade()
@@ -187,6 +332,8 @@ class covid_brasil:
     def consertar_municipios(self):
         """
         consertar dados de municipios
+        EDIT: em 25/05 o Ministério da Saúde consertou os dados. Essa função não é mais necessária.
+
             em 21/05/2020, os dados divulgados pelo Ministério da Saúde mudaram. Entre as mudanças,
             os dados pré-20/05 dos municípios passaram a não ser categorizados como tal.
             Essa é uma tentativa de massagear os dados para categorizar corretamente os dados municipais.
@@ -201,7 +348,7 @@ class covid_brasil:
             casos e óbitos de cada estado.
 
             Os dados divulgados pelo Ministério da Saúde cortam o último dígito do código
-            do município nas datas pré-20/05, de forma que a classificação do município fica prejudicada.
+            do município nas datas pós-20/05, de forma que a classificação do município fica prejudicada.
 
             A lógica de classificação dos dados municipais faltantes já foi parcialmente implementada
             na função `substituir_nomes`, especificamente a parte em que o codmun é EE0000. Logo,
@@ -229,14 +376,16 @@ class covid_brasil:
 
                 3) realizar o LEFT JOIN e limpar as colunas.
                     Após esse passo, teremos, para um mesmo município, dois codmun. No exemplo acima,
-                    Adamantina terá codmun 350010 e 3500105.
+                    Adamantina será associadas a dois codmun, 350010 e 3500105.
 
                 4) sanear o dataframe resultante para eliminar essa dupla codificação
                     através de um GroupBy inteligente
 
                 5) sanear o resto do dataframe resultante
-                    O saneamento consiste somente de dropar as colunas que foram criadas como
-                    resultado intermediário desse processo.
+                    O saneamento consiste de
+                    5a) dropar as colunas que foram criadas como resultado intermediário desse
+                        processo.
+                    5b) aplicar sort() à coluna `data`
 
         :return: None
         """
@@ -250,8 +399,9 @@ class covid_brasil:
                             'nomeRegiaoSaude', 'populacaoTCU2019']
         municipios_conhecidos = self.covidbr[mask_municipios_conhecidos][municipios_attrs]
 
-        # para haver um registro por município
+        # para haver só um registro por município
         municipios_conhecidos = municipios_conhecidos.groupby('codmun').first()
+        # obs.: o index de municipios_conhecidos agora é ['codmun'], diferente de self.covidbr (index genérico)
 
         # passo 2
         self.covidbr['codmun_10'] = self.covidbr['codmun']//10
@@ -275,7 +425,7 @@ class covid_brasil:
 
         # passo 5
         self.covidbr.drop(columns = [ c for c in self.covidbr.columns if '_' in c ], inplace=True)
-
+        self.covidbr = self.covidbr.sort_values(by=['codmun', 'data'])
 
     def dias_desde_caso_0(self):
         """
@@ -304,21 +454,69 @@ class covid_brasil:
         self.covidbr['obitos_7d'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff(7).fillna(0)
         self.covidbr['casos_7d'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff(7).fillna(0)
 
-    def casos_obitos_percapita(self):
+    def __norm_casos_obitos_percapita(self):
         """
-        casos e óbitos por milhão de habitantes
+        calcula o fator de normalização para considerar casos e óbitos por milhão de habitantes
+
         :return: None
         """
 
-        self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['norm_percapita'] = 1 / (self.covidbr['populacaoTCU2019'] / (10**6))
 
-        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] / \
-                                          (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] * self.covidbr['norm_percapita']
+        self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] * self.covidbr['norm_percapita']
 
-        self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
-        self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] / (self.covidbr['populacaoTCU2019'] / (10 ** 6))
+        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] * self.covidbr['norm_percapita']
+        self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] * self.covidbr['norm_percapita']
+
+        self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] * self.covidbr['norm_percapita']
+        self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] * self.covidbr['norm_percapita']
+
+    def __norm_densidade_demografica(self):
+        """
+        calcula o fator de normalização para a densidade demográfica
+            - (# casos ou # obitos) / (populacao / area) = (# casos ou # obitos) * area / populacao
+            - essencialmente o fator de normalização per capita * área de cada municipio
+
+        :return: None
+        """
+
+        pass
+
+    def __norm_perfil_demografico(self):
+        """
+        calcula o fator de normalização para o % de idosos na população de cada município
+            - (# casos ou # obitos) / (% idosos)
+
+        :return: None
+        """
+
+        pass
+
+    def __norm_conectividade(self):
+        """
+        calcula o fator de normalizacao para a medida de conectividade de cada cidade, região, etc
+
+        :return:
+        """
+
+        pass
+
+    def normalizacao(self):
+        """
+        calcular fatores de normalização
+            - normalização per capita
+            - TODO: normalização por densidade populacional
+            - TODO: normalização por % velhos na população
+            - TODO: normalização por conectividade
+
+        :return: None
+        """
+        func_norm = [v for k, v in self.__class__.__dict__.items()
+                        if k.startswith('_covid_brasil__norm')]  # mangling
+
+        for f in func_norm:
+            _ = f(self)
 
     def suavizacao(self, janela_mm = mm_periodo):
         """
@@ -393,7 +591,7 @@ class covid_brasil:
         self.covidbr['mortalidade'] = self.covidbr['obitosAcumulado'] / \
                                      (self.covidbr['populacaoTCU2019'] / (10**5))
 
-    def graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
+    def __graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -422,7 +620,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municipios
@@ -449,7 +647,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados):
+    def __graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -478,7 +676,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios):
+    def __graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -506,7 +704,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -531,7 +729,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -557,7 +755,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -583,7 +781,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
+    def __graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -609,7 +807,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_novos_por_dias_pandemia_estados(self, data_estados):
+    def __graf_casos_novos_por_dias_pandemia_estados(self, data_estados):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
@@ -635,7 +833,7 @@ class covid_brasil:
 
         return axs
 
-    def graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios):
+    def __graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
@@ -675,7 +873,7 @@ class covid_brasil:
         # executar todas as funções no escopo atual começando por 'graf_'
 
         func_grafs = [ v for k,v in self.__class__.__dict__.items()
-                       if k.startswith('graf_') ]
+                       if k.startswith('_covid_brasil__graf') ] # mangling
 
         self.eixos = []
 
@@ -689,7 +887,7 @@ class covid_brasil:
             self.eixos += axs
 
 
-br = covid_brasil(diretorio = None, graficos = True)
+br = covid_brasil(diretorio = None, graficos = False)
 
 cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
 cbr = cbr.drop(columns=['municipio', 'codmun'])
