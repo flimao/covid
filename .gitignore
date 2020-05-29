@@ -68,3 +68,5 @@ target/
 .ipynb_checkpoints/
 data/JohnsHopkinsU
 data/OurWorldInData
+data/TheEconomist
+data/PolicyTracker
