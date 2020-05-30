@@ -42,8 +42,6 @@ class covid_brasil:
 
         self.covidbr, self.areas, self.areas_estados, self.demobr, self.demomun = self.ler_dados(diretorio)
 
-        self.check = [62810, 6810, 2011, 2014, 88, 0]
-
         self.preproc()
         self.transform()
         if graficos:
@@ -638,12 +636,10 @@ class covid_brasil:
         t = t[:-2] + ')'
         return t
 
-    def norm_grafico(self, dados, normalizacao,
-                     x_orig, y_orig,
-                     titulo_x_orig, titulo_y_orig,
-                     norm_xy):
+    def norm_grafico(self, dados, normalizacao, x_orig, y_orig, titulo_x_orig, titulo_y_orig, norm_xy):
         """
         retorna alguns parametros necessarios para plotagem dos graficos com dados normalizados
+
         :param dados: os dados (data_estados ou data_municipios)
         :param normalizacao: o vetor que representa a normalizacao desejada
         :param titulo_x_orig: o título do eixo x original
@@ -653,7 +649,6 @@ class covid_brasil:
             dados_normalizados: dataframe (cópia) contendo valores originais e valores normalizados
             titulo_x, titulo_y: os valores dos titulos dos eixos após explicação da normalizacao
         """
-
         dados = dados.copy()
 
         # calcular o fator de normalizacao
@@ -661,19 +656,17 @@ class covid_brasil:
         f_titulo = self.texto_normalizacao(normalizacao=normalizacao)
 
         # aplicar o fator de normalizacao a cada eixo, caso apropriado
+        dados['x'] = dados[x_orig]
+        titulo_x = titulo_x_orig
         if 'x' in norm_xy:
-            dados['x'] = dados[x_orig] * f
-            titulo_x = titulo_x_orig + f_titulo
-        else:
-            dados['x'] = dados[x_orig]
-            titulo_x = titulo_x_orig
+            dados['x'] *= f
+            titulo_x += f_titulo
 
+        dados['y'] = dados[y_orig]
+        titulo_y = titulo_y_orig
         if 'y' in norm_xy:
-            dados['y'] = dados[y_orig] * f
-            titulo_y = titulo_y_orig + f_titulo
-        else:
-            dados['y'] = dados[y_orig]
-            titulo_y = titulo_y_orig
+            dados['y'] *= f
+            titulo_y += f_titulo
 
         return dados, titulo_x, titulo_y
 
@@ -684,6 +677,7 @@ class covid_brasil:
         """
 
         mm_aplicar = ['obitosAcumMMhab', 'obitos_7d_MMhab', 'casosAcumMMhab', 'casos_7d_MMhab']
+        mm_aplicar += ['obitosAcumulado', 'obitos_7d', 'casosAcumulado', 'casos_7d', 'casosNovo']
         mm_aplicado = [ mm + '_mm' for mm in mm_aplicar ]
 
         self.covidbr[mm_aplicado] = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
@@ -750,28 +744,37 @@ class covid_brasil:
         self.covidbr['mortalidade'] = self.covidbr['obitosAcumulado'] / \
                                      (self.covidbr['populacaoTCU2019'] / (10**5))
 
-    def __graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados):
+    def __graf_obitos_acum_por_novos_obitos_loglog_estados(self, data_estados, normalizacao):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
         :return: objetos Axes
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_estados,
+            normalizacao=normalizacao,
+            x_orig='obitosAcumulado_mm',
+            y_orig='obitos_7d_mm',
+            titulo_x_orig='Total de Óbitos (média móvel de ' + str(mm_periodo) + ' dias)',
+            titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='xy'
+        )
+
         plt.figure()
-        ax1o = sns.lineplot(
-            data=data_estados, x='obitosAcumMMhab_mm', y='obitos_7d_MMhab_mm', hue='estado',
-            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='estado',
+                            err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax1o]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='log', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Total de Óbitos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
-                   ylabel='Novos Óbitos (últ. 7 dias, por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Óbitos)')
 
             ax.get_yaxis().set_major_formatter(CustomTicker())
@@ -788,20 +791,20 @@ class covid_brasil:
         dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
             dados=data_municipios,
             normalizacao=normalizacao,
-            x_orig='obitosAcumulado',
-            y_orig='obitos_7d',
+            x_orig='obitosAcumulado_mm',
+            y_orig='obitos_7d_mm',
             titulo_x_orig='Total de Óbitos (média móvel de ' + str(mm_periodo) + ' dias)',
             titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
             norm_xy='xy'
         )
 
         plt.figure()
-        ax2o = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
                             err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax2o]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='log', yscale='log',
@@ -816,28 +819,37 @@ class covid_brasil:
 
         return axs
 
-    def __graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados):
+    def __graf_casos_acum_por_novos_casos_loglog_estados(self, data_estados, normalizacao):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
         :return: objetos Axes
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_estados,
+            normalizacao=normalizacao,
+            x_orig='casosAcumulado_mm',
+            y_orig='casos_7d_mm',
+            titulo_x_orig='Total de Casos (média móvel de ' + str(mm_periodo) + ' dias)',
+            titulo_y_orig='Novos Casos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='xy'
+        )
+
         plt.figure()
-        ax1c = sns.lineplot(
-            data=data_estados, x='casosAcumMMhab_mm', y='casos_7d_MMhab_mm', hue='estado',
-            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='estado',
+                            err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax1c]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='log', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Total de Casos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
-                   ylabel='Novos Casos (últ. 7 dias, por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Infecções)')
 
             ax.get_yaxis().set_major_formatter(CustomTicker())
@@ -845,27 +857,37 @@ class covid_brasil:
 
         return axs
 
-    def __graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios):
+    def __graf_casos_acum_por_novos_casos_loglog_municipios(self, data_municipios, normalizacao):
         """
         gráfico: casos acumulados por MM hab. (log) x novos casos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
         :return: objetos Axes
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_municipios,
+            normalizacao=normalizacao,
+            x_orig='casosAcumulado_mm',
+            y_orig='casos_7d_mm',
+            titulo_x_orig='Total de Casos (média móvel de ' + str(mm_periodo) + ' dias)',
+            titulo_y_orig='Novos Casos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='xy'
+        )
+
         plt.figure()
-        ax2c = sns.lineplot(data=data_municipios, x='casosAcumMMhab_mm', y='casos_7d_MMhab_mm', hue='municipio',
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
                             err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax2c]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='log', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Total de Casos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
-                   ylabel='Novos Casos (últ. 7 dias, por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Infecções)')
 
             ax.get_yaxis().set_major_formatter(CustomTicker())
@@ -873,71 +895,137 @@ class covid_brasil:
 
         return axs
 
-    def __graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_obitos_acum_por_dias_pandemia_log_estados(self, data_estados, normalizacao):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
         :return:
         """
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_estados,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='obitosAcumulado_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Total de Óbitos (média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
         plt.figure()
-        ax3o = sns.lineplot(data=data_estados, x='dias_desde_obito_MMhab', y='obitosAcumMMhab_mm', hue='estado',
-                            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='estado',
+                          err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax3o]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='linear', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Dias desde 0.1 óbito por MM hab.',
-                   ylabel='Total de Óbitos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Óbitos)')
             ax.get_yaxis().set_major_formatter(CustomTicker())
 
         return axs
 
-    def __graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_dias_pandemia_log_municipios(self, data_municipios, normalizacao):
         """
         gráfico: data desde 0.1 óbito por MM hab. x óbitos acumulados por MM hab. (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
         :return:
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_municipios,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='obitosAcumulado_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Total de Óbitos (média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
         plt.figure()
-        ax4o = sns.lineplot(data=data_municipios, x='dias_desde_obito_MMhab', y='obitosAcumMMhab_mm', hue='municipio',
-                            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
+                          err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax4o]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='linear', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Dias desde 0.1 óbito por MM hab.',
-                   ylabel='Total de Óbitos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Óbitos)')
             ax.get_yaxis().set_major_formatter(CustomTicker())
 
         return axs
 
-    def __graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados):
+    def __graf_casos_acum_por_dias_pandemia_log_estados(self, data_estados, normalizacao):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
         :return:
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_estados,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='casosAcumulado_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Total de Casos (média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
         plt.figure()
-        ax3c = sns.lineplot(data=data_estados, x='dias_desde_obito_MMhab', y='casosAcumMMhab_mm', hue='estado',
-                            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='estado',
+                          err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax3c]
+        axs = [ax]
+
+        for ax in axs:
+            ax.set(xscale='linear', yscale='log',
+                   xticks={'minor': True}, yticks={'minor': True},
+                   adjustable='datalim',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
+                   title='Evolução da COVID-19 no Brasil (Infecções)')
+            ax.get_yaxis().set_major_formatter(CustomTicker())
+
+        return axs
+
+    def __graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios, normalizacao):
+        """
+        gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
+        :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
+        :return:
+        """
+
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_municipios,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='casosAcumulado_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Total de Casos (média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
+        plt.figure()
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
+                          err_style=None)
+        plt.tight_layout()
+        sns.despine()
+
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='linear', yscale='log',
@@ -950,79 +1038,73 @@ class covid_brasil:
 
         return axs
 
-    def __graf_casos_acum_por_dias_pandemia_log_municipios(self, data_municipios):
-        """
-        gráfico: data desde 0.1 óbito por MM hab. x casos acumulados por MM hab. (log)
-        :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
-        :return:
-        """
-
-        plt.figure()
-        ax4c = sns.lineplot(data=data_municipios, x='dias_desde_obito_MMhab', y='casosAcumMMhab_mm', hue='municipio',
-                            err_style=None)
-        plt.tight_layout()
-        sns.despine()
-
-        axs = [ax4c]
-
-        for ax in axs:
-            ax.set(xscale='linear', yscale='log',
-                   xticks={'minor': True}, yticks={'minor': True},
-                   adjustable='datalim',
-                   xlabel='Dias desde 0.1 óbito por MM hab.',
-                   ylabel='Total de Casos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
-                   title='Evolução da COVID-19 no Brasil (Infecções)')
-            ax.get_yaxis().set_major_formatter(CustomTicker())
-
-        return axs
-
-    def __graf_casos_novos_por_dias_pandemia_estados(self, data_estados):
+    def __graf_casos_novos_por_dias_pandemia_estados(self, data_estados, normalizacao):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_estados: dados usados pelo seaborn para plotar o gráfico dos estados
         :return:
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_estados,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='casosNovo_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Casos Novos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
         plt.figure()
-        ax5c = sns.lineplot(data=data_estados, x='dias_desde_obito_MMhab', y='casos_7d_MMhab_mm', hue='estado',
-                            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='estado',
+                          err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax5c]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='linear', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Dias desde 0.1 óbito por MM hab.',
-                   ylabel='Casos Novos (por MM hab., últimos 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Infecções)')
             ax.get_yaxis().set_major_formatter(CustomTicker())
 
         return axs
 
-    def __graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios):
+    def __graf_casos_novos_por_dias_pandemia_municipios(self, data_municipios, normalizacao):
         """
         gráfico: data desde 0.1 óbito por MM hab. x casos novos por MM hab.
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municípios
         :return:
         """
 
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_municipios,
+            normalizacao=normalizacao,
+            x_orig='dias_desde_obito_MMhab',
+            y_orig='casosNovo_mm',
+            titulo_x_orig='Dias desde 0.1 óbito por MM hab.',
+            titulo_y_orig='Casos Novos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='y'
+        )
+
         plt.figure()
-        ax6c = sns.lineplot(data=data_municipios, x='dias_desde_obito_MMhab', y='casos_7d_MMhab_mm', hue='municipio',
-                            err_style=None)
+        ax = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
+                          err_style=None)
         plt.tight_layout()
         sns.despine()
 
-        axs = [ax6c]
+        axs = [ax]
 
         for ax in axs:
             ax.set(xscale='linear', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Dias desde 0.1 óbito por MM hab.',
-                   ylabel='Casos Novos (por MM hab., últimos 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Infecções)')
             ax.get_yaxis().set_major_formatter(CustomTicker())
 
@@ -1058,7 +1140,6 @@ class covid_brasil:
 
 
 br = covid_brasil(diretorio = None, graficos = False)
-print(br.texto_normalizacao(normalizacao=['densidade_demografica', 'perfil_demografico']))
 
 cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
 cbr = cbr.drop(columns=['municipio', 'codmun'])
