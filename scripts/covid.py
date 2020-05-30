@@ -535,8 +535,7 @@ class covid_brasil:
 
         :return: None
         """
-        self.covidbr['norm_densidade'] = self.covidbr['area'] / self.covidbr['populacaoTCU2019']
-        
+        self.covidbr['norm_densidade'] = self.covidbr['area'] / (self.covidbr['populacaoTCU2019'])
 
     def __norm_perfil_demografico(self):
         """
@@ -572,6 +571,111 @@ class covid_brasil:
 
         for f in func_norm:
             _ = f(self)
+
+    def fator_normalizacao(self, dados, normalizacao):
+        """
+        retorna o fator de normalizacao correspondente à normalizacao desejada
+        :param dados: dados que contem os fatores de normalizacao
+        :param normalizacao: normalizacao desejada.
+            pode ser um vetor contendo quaisquer dos itens ['percapita', 'densidade_demografica', 'perfil_demografico']
+        :return: o fator de normalizacao correspondente (para cada linha)
+        """
+        correspondencia = {
+            'percapita': 'norm_percapita',
+            'densidade_demografica': 'norm_densidade',
+            'perfil_demografico': 'norm_demo'
+        }
+
+        f = 1
+
+        if normalizacao is None:
+            return f
+
+        fatores_mult_cols = [ v for k, v in correspondencia.items() if k in normalizacao ]
+        for c in fatores_mult_cols:
+            f *= dados[c]
+
+        return f
+
+    def texto_normalizacao(self, normalizacao):
+        """
+        retorna o texto explicativo da normalizacao selecionada
+        Por exemplo, se deseja-se normalizacao por densidade demográfica e perfil demográfico,
+            texto = '(normalizado por densidade demográfica e perfil demográfico)
+        :param normalizacao: a normalizacao desejada
+        :return: texto
+        """
+        if normalizacao is None:
+            return None
+
+        subst = {
+            'percapita': 'MM hab.',
+            'densidade_demografica': 'densidade demográfica (MM hab/km2)',
+            'perfil_demografico': '% idosos na população'
+        }
+
+        set_norm_almost_all = set(list(subst.keys())[2:])
+        set_norm = set(normalizacao) - {'percapita', 'densidade_demografica'}
+
+        t = '\n('
+
+        if 'percapita' in normalizacao:
+            t += 'por ' + subst['percapita'] + ', '
+
+        elif 'densidade_demografica' in normalizacao:
+            t += 'por ' + subst['densidade_demografica'] + ', '
+
+        # interseção de conjuntos:
+        #   se algum elemento da normalizacao corresponder a algum elemento da lista de normalizacoes disponíveis
+        #   (exceto 'percapita' e 'densidade_demografica', que já foram considerados), então prossiga.
+        if set_norm_almost_all & set_norm != set():
+
+            t += 'normalizado por '
+
+            for c in list(set_norm):
+                t += subst[c] + ', '
+
+        t = t[:-2] + ')'
+        return t
+
+    def norm_grafico(self, dados, normalizacao,
+                     x_orig, y_orig,
+                     titulo_x_orig, titulo_y_orig,
+                     norm_xy):
+        """
+        retorna alguns parametros necessarios para plotagem dos graficos com dados normalizados
+        :param dados: os dados (data_estados ou data_municipios)
+        :param normalizacao: o vetor que representa a normalizacao desejada
+        :param titulo_x_orig: o título do eixo x original
+        :param titulo_y_orig: o título do eixo y original
+        :param norm_xy: os eixos em que se deseja aplicar a normalizacao. Pode ser 'x', 'y' ou 'xy'
+        :return: vetor com
+            dados_normalizados: dataframe (cópia) contendo valores originais e valores normalizados
+            titulo_x, titulo_y: os valores dos titulos dos eixos após explicação da normalizacao
+        """
+
+        dados = dados.copy()
+
+        # calcular o fator de normalizacao
+        f = self.fator_normalizacao(dados=dados, normalizacao=normalizacao)
+        f_titulo = self.texto_normalizacao(normalizacao=normalizacao)
+
+        # aplicar o fator de normalizacao a cada eixo, caso apropriado
+        if 'x' in norm_xy:
+            dados['x'] = dados[x_orig] * f
+            titulo_x = titulo_x_orig + f_titulo
+        else:
+            dados['x'] = dados[x_orig]
+            titulo_x = titulo_x_orig
+
+        if 'y' in norm_xy:
+            dados['y'] = dados[y_orig] * f
+            titulo_y = titulo_y_orig + f_titulo
+        else:
+            dados['y'] = dados[y_orig]
+            titulo_y = titulo_y_orig
+
+        return dados, titulo_x, titulo_y
 
     def suavizacao(self, janela_mm = mm_periodo):
         """
@@ -675,14 +779,24 @@ class covid_brasil:
 
         return axs
 
-    def __graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios):
+    def __graf_obitos_acum_por_novos_obitos_loglog_municipios(self, data_municipios, normalizacao):
         """
         gráfico: óbitos acumulados por MM hab. (log) x novos óbitos na última semana por MM hab (log)
         :param data_municipios: dados usados pelo seaborn para plotar o gráfico dos municipios
         :return: objetos Axes
         """
+        dados_normalizados, titulo_x, titulo_y = self.norm_grafico(
+            dados=data_municipios,
+            normalizacao=normalizacao,
+            x_orig='obitosAcumulado',
+            y_orig='obitos_7d',
+            titulo_x_orig='Total de Óbitos (média móvel de ' + str(mm_periodo) + ' dias)',
+            titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
+            norm_xy='xy'
+        )
+
         plt.figure()
-        ax2o = sns.lineplot(data=data_municipios, x='obitosAcumMMhab_mm', y='obitos_7d_MMhab_mm', hue='municipio',
+        ax2o = sns.lineplot(data=dados_normalizados, x='x', y='y', hue='municipio',
                             err_style=None)
         plt.tight_layout()
         sns.despine()
@@ -693,8 +807,8 @@ class covid_brasil:
             ax.set(xscale='log', yscale='log',
                    xticks={'minor': True}, yticks={'minor': True},
                    adjustable='datalim',
-                   xlabel='Total de Óbitos (por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
-                   ylabel='Novos Óbitos (últ. 7 dias, por MM hab., média móvel de ' + str(mm_periodo) + ' dias)',
+                   xlabel=titulo_x,
+                   ylabel=titulo_y,
                    title='Evolução da COVID-19 no Brasil (Óbitos)')
 
             ax.get_yaxis().set_major_formatter(CustomTicker())
@@ -916,7 +1030,8 @@ class covid_brasil:
 
     def graficos(self,
                  estados = ('RJ', 'SP', 'AM', 'Brasil'),
-                 municipios = ('Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil')):
+                 municipios = ('Niterói', 'Rio de Janeiro', 'São Paulo', 'Brasil'),
+                 normalizacao = ('percapita',)):
         """
         plotar gráficos
         :return: None
@@ -925,7 +1040,7 @@ class covid_brasil:
         plt_data_estados = self.covidrel[(~self.mask_exc_resumo_rel) & self.covidrel['estado'].isin(estados)]
         plt_data_municipios = self.covidrel[self.covidrel['municipio'].isin(municipios)]
 
-        # executar todas as funções no escopo atual começando por 'graf_'
+        # executar todas as funções no escopo atual começando por '__graf'
 
         func_grafs = [ v for k,v in self.__class__.__dict__.items()
                        if k.startswith('_covid_brasil__graf') ] # mangling
@@ -938,11 +1053,12 @@ class covid_brasil:
             else:
                 arg = plt_data_estados
 
-            axs = f(self, arg)
+            axs = f(self, arg, normalizacao)
             self.eixos += axs
 
 
 br = covid_brasil(diretorio = None, graficos = False)
+print(br.texto_normalizacao(normalizacao=['densidade_demografica', 'perfil_demografico']))
 
 cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
 cbr = cbr.drop(columns=['municipio', 'codmun'])
