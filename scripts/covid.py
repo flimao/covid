@@ -124,7 +124,7 @@ class covid_brasil:
             'CD_GCUF': 'coduf',
             'NM_UF': 'estado_nome',
             'NM_UF_SIGLA': 'estado',
-            'CD_GCMUN': 'codmun',
+            'CD_GCMUN': 'codmun_10',
             'NM_MUN_2019': 'municipio',
             'AR_MUN_2019': 'area'
         }
@@ -139,15 +139,37 @@ class covid_brasil:
         self.areas.rename(columns=dict_rename_areas, inplace=True)
         self.areas_estados.rename(columns=dict_rename_areas_estados, inplace=True)
 
+        # dividir codmun_10 por 10 para ficar igual ao resto dos DataFrames
+        self.areas['codmun'] = self.areas['codmun_10'] // 10
+
         # acertar tipos das colunas
-        self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(int)
-        self.areas_estados.coduf = self.areas_estados.coduf.astype(int)
+        self.areas[['coduf', 'codmun']] = self.areas[['coduf', 'codmun']].astype(float).astype('Int64')
+        self.areas_estados.coduf = self.areas_estados.coduf.astype(float).astype('Int64')
 
         # trocar indice ID por indice (estado, municipio) ou estado
-        self.areas.set_index(keys=['estado', 'municipio'], inplace=True)
+        self.areas.set_index(keys=['coduf', 'codmun'], inplace=True)
         self.areas.drop(columns='ID', inplace=True)
-        self.areas_estados.set_index(keys='estado', inplace=True)
+        self.areas_estados.set_index(keys='coduf', inplace=True)
         self.areas_estados.drop(columns='ID', inplace=True)
+
+        # calcular área do brasil
+        self.area_brasil = pd.DataFrame(
+            [ [self.areas_estados['area'].sum(), 'BR', 'Brasil' ] ],
+            index=pd.Index([76], name='coduf'),
+            columns=['area', 'estado', 'estado_nome']
+        )
+        self.areas_estados = pd.concat([self.areas_estados, self.area_brasil])
+
+        # LEFT JOIN: primeiro as dos estados e depois as dos municípios.
+        intermediario = self.covidbr.merge(self.areas_estados['area'], on='coduf', how='left')
+        intermediario = intermediario.merge(self.areas['area'], on='codmun', how='left',
+                                            suffixes=('_est', '_mun'))
+
+        # arrumar as colunas em uma só.
+        self.covidbr['area'] = intermediario['area_mun'].where(
+            ~intermediario['area_mun'].isnull(),
+            other=intermediario['area_est']
+        )
 
     def __preproc_demobr(self):
         """
@@ -513,8 +535,8 @@ class covid_brasil:
 
         :return: None
         """
-
-        pass
+        self.covidbr['norm_densidade'] = self.covidbr['area'] / self.covidbr['populacaoTCU2019']
+        
 
     def __norm_perfil_demografico(self):
         """
