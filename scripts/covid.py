@@ -495,8 +495,11 @@ class covid_brasil:
         :return: None
         """
 
-        self.covidbr['obitosNovo'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff().fillna(0)
-        self.covidbr['casosNovo'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff().fillna(0)
+        #self.covidbr['obitosNovo'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff().fillna(0)
+        #self.covidbr['casosNovo'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff().fillna(0)
+
+        self.covidbr['obitosNovo'] = self.covidbr['obitosNovos']
+        self.covidbr['casosNovo'] = self.covidbr['casosNovos']
 
     def casos_obitos_ultima_semana(self):
         """
@@ -504,8 +507,15 @@ class covid_brasil:
         :return: None
         """
 
-        self.covidbr['obitos_7d'] = self.covidbr.groupby(self.agrupar_full)['obitosAcumulado'].diff(7).fillna(0)
-        self.covidbr['casos_7d'] = self.covidbr.groupby(self.agrupar_full)['casosAcumulado'].diff(7).fillna(0)
+        #self.covidbr['obitos_7d'] = self.covidbr.groupby(self.agrupar_full)['obitosNovos'].rolling(7).sum().fillna(0)
+        #self.covidbr['casos_7d'] = self.covidbr.groupby(self.agrupar_full)['casosNovos'].rolling(7).sum().fillna(0)
+
+        self.covidbr['obitos_7d'] = self.covidbr.groupby(['estado', 'municipio'])['obitosNovos'].apply(
+            lambda x: x.rolling(7).sum()
+        )
+        self.covidbr['casos_7d'] = self.covidbr.groupby(['estado', 'municipio'])['casosNovos'].apply(
+            lambda x: x.rolling(7).sum()
+        )
 
     def __norm_casos_obitos_percapita(self):
         """
@@ -515,15 +525,6 @@ class covid_brasil:
         """
 
         self.covidbr['norm_percapita'] = 1 / (self.covidbr['populacaoTCU2019'] / (10**6))
-
-        self.covidbr['obitosMMhab'] = self.covidbr['obitosNovo'] * self.covidbr['norm_percapita']
-        self.covidbr['casosMMhab'] = self.covidbr['casosNovo'] * self.covidbr['norm_percapita']
-
-        self.covidbr['obitosAcumMMhab'] = self.covidbr['obitosAcumulado'] * self.covidbr['norm_percapita']
-        self.covidbr['casosAcumMMhab'] = self.covidbr['casosAcumulado'] * self.covidbr['norm_percapita']
-
-        self.covidbr['obitos_7d_MMhab'] = self.covidbr['obitos_7d'] * self.covidbr['norm_percapita']
-        self.covidbr['casos_7d_MMhab'] = self.covidbr['casos_7d'] * self.covidbr['norm_percapita']
 
     def __norm_densidade_demografica(self):
         """
@@ -676,8 +677,9 @@ class covid_brasil:
         :return: None
         """
 
-        mm_aplicar = ['obitosAcumMMhab', 'obitos_7d_MMhab', 'casosAcumMMhab', 'casos_7d_MMhab']
-        mm_aplicar += ['obitosAcumulado', 'obitos_7d', 'casosAcumulado', 'casos_7d', 'casosNovo']
+        mm_aplicar = ['obitosAcumulado', 'obitos_7d',
+                      'casosAcumulado', 'casos_7d',
+                      'casosNovo']
         mm_aplicado = [ mm + '_mm' for mm in mm_aplicar ]
 
         self.covidbr[mm_aplicado] = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
@@ -689,7 +691,7 @@ class covid_brasil:
         cálculo de # de dias desde 0.1 obito por MM hab
         :return: None
         """
-        self.mask_obitoMMhab = self.covidbr['obitosAcumMMhab'] >= 0.1
+        self.mask_obitoMMhab = self.covidbr['obitosAcumulado'] * self.covidbr['norm_percapita'] >= 0.1
 
         self.covidrel = self.covidbr.loc[self.covidbr[self.mask_obitoMMhab].index]
 
