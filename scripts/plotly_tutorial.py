@@ -15,7 +15,9 @@ from matplotlib.ticker import LogFormatterSciNotation
 import plotly.graph_objs as go
 import plotly.express as px
 
-import covid
+from thesmuggler import smuggle
+
+covid = smuggle('./covid.py')
 
 sns.set(style = 'ticks', rc = { 'grid.color': '.8', 'grid.linestyle': '-'})
 locale.setlocale(locale.LC_ALL,'portuguese_brazil')
