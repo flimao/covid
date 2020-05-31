@@ -57,12 +57,12 @@ fig.update_traces(connectgaps = True,
                   )
 
 fig.update_layout(hovermode='x unified',
-                  title_text = 'Evolução da COVID-19 no Brasil (Infecções)')
+                  title_text = 'Evolução da COVID-19 no Brasil (Óbitos)')
 
 fig.update_yaxes(title_text = titulo_y)
 fig.update_xaxes(title_text = titulo_x)
 
-log_or_linear = [{
+log_linear = [{
     'active': 0,
     'y': 0.96, 'x': -0.11,
     'xanchor': 'right', 'yanchor':'top',
@@ -98,18 +98,71 @@ log_or_linear = [{
 ]
 }]
 
+annot_log_linear = [
+    dict(text="Escala", showarrow=False,
+         x=-0.11, y=0.96, yref="paper", xref='paper',
+         xanchor='right', yanchor='bottom',
+        font_size=16
+         ),
+    dict(text="Escala", showarrow=False,
+         x=0.9, y=-0.17, yref="paper", xref='paper',
+         xanchor='right', yanchor='top',
+         font_size=16
+         )
+]
 
-
-annotations = [
-        dict(text="Escala:", showarrow=False,
-             x=-0.11, y=0.96, yref="paper", xref='paper',
-             xanchor='right', yanchor='bottom'),
-        dict(text="Escala:", showarrow=False,
-             x=0.9, y=-0.17, yref="paper", xref='paper',
-             xanchor='right', yanchor='top')
+obitos_casos = [dict(
+    active=0,
+    x=0.5, y=1.1,
+    xanchor='left', yanchor='top',
+    type='dropdown', direction='down',
+    buttons=[dict(
+        label='óbitos',
+        method='restyle',
+        args=[]
+    ), dict(
+        label='casos',
+        method='restyle',
+        args=[]
+    )
     ]
+)]
 
-fig.update_layout(updatemenus=log_or_linear, annotations=annotations)
+annot_obitos_casos = [
+    dict(text="Tipo", showarrow=False,
+         x=0.5, y=1.09, yref="paper", xref='paper',
+         xanchor='right', yanchor='top',
+         font_size = 16
+         )
+]
+
+total_novos = [dict(
+    active=0,
+    x=0.75, y=1.1,
+    xanchor='left', yanchor='top',
+    type='dropdown', direction='down',
+    buttons=[dict(
+        label='# total',
+        method='restyle',
+        args=[]
+    ), dict(
+        label='# novos',
+        method='restyle',
+        args=[]
+    )
+    ]
+)]
+
+annot_total_novos = [
+    dict(text="Concentração", showarrow=False,
+         x=0.75, y=1.09, yref="paper", xref='paper',
+         xanchor='right', yanchor='top',
+         font_size = 16
+         )
+]
+
+fig.update_layout(updatemenus=log_linear + obitos_casos + total_novos,
+                  annotations=annot_log_linear + annot_obitos_casos + annot_total_novos)
 
 fig.write_html(html)
 fig.write_image(img)
