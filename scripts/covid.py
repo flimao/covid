@@ -596,7 +596,7 @@ class covid_brasil:
 
         return f
 
-    def texto_normalizacao(self, normalizacao):
+    def texto_normalizacao(self, normalizacao, crlf):
         """
         retorna o texto explicativo da normalizacao selecionada
         Por exemplo, se deseja-se normalizacao por densidade demográfica e perfil demográfico,
@@ -616,7 +616,7 @@ class covid_brasil:
         set_norm_almost_all = set(list(subst.keys())[2:])
         set_norm = set(normalizacao) - {'percapita', 'densidade_demografica'}
 
-        t = '\n('
+        t = crlf + '('
 
         if 'percapita' in normalizacao:
             t += 'por ' + subst['percapita'] + ', '
@@ -637,7 +637,7 @@ class covid_brasil:
         t = t[:-2] + ')'
         return t
 
-    def norm_grafico(self, dados, normalizacao, x_orig, y_orig, titulo_x_orig, titulo_y_orig, norm_xy):
+    def norm_grafico(self, dados, normalizacao, x_orig, y_orig, titulo_x_orig, titulo_y_orig, norm_xy, crlf='\n'):
         """
         retorna alguns parametros necessarios para plotagem dos graficos com dados normalizados
 
@@ -654,7 +654,7 @@ class covid_brasil:
 
         # calcular o fator de normalizacao
         f = self.fator_normalizacao(dados=dados, normalizacao=normalizacao)
-        f_titulo = self.texto_normalizacao(normalizacao=normalizacao)
+        f_titulo = self.texto_normalizacao(normalizacao=normalizacao, crlf=crlf)
 
         # aplicar o fator de normalizacao a cada eixo, caso apropriado
         dados['x'] = dados[x_orig]
