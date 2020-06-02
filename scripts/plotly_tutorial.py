@@ -27,7 +27,8 @@ locale.setlocale(locale.LC_ALL,'portuguese_brazil')
 # ##
 mm_periodo = 5
 
-data_estados = ['AM', 'SP', 'RJ', 'Brasil']
+#data_estados = ['AM', 'SP', 'RJ', 'Brasil']
+data_estados = ['Brasil', 'RJ']
 normalizacao = ['percapita']
 
 br = covid.covid_brasil(diretorio = None, graficos = False)
@@ -47,6 +48,7 @@ html = r'..\imgs (nogit)\img.html'
 img = r'..\imgs (nogit)\img.png'
 
 fig1 = px.line(df_norm, x='x', y='y', color='estado', log_y = True, hover_name='estado')
+
 #fig2 = px.line(df, x='dias_desde_obito_MMhab', y='obitos_7d_MMhab', color='estado',
 #              log_y = True, hover_name='estado')
 fig = fig1 # + fig2
@@ -119,11 +121,15 @@ obitos_casos = [dict(
     buttons=[dict(
         label='óbitos',
         method='restyle',
-        args=[]
+        args=[{'x': [ df_norm[df_norm['estado'] == c].x for c in data_estados ],
+               'y': [ df_norm[df_norm['estado'] == c].y for c in data_estados ]
+               }]
     ), dict(
         label='casos',
         method='restyle',
-        args=[]
+        args=[{'x': [ df_norm[df_norm['estado'] == c].x for c in data_estados ],
+               'y': [ df_norm[df_norm['estado'] == c].x for c in data_estados ]
+               }]
     )
     ]
 )]
