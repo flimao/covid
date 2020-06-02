@@ -14,6 +14,9 @@ from matplotlib.ticker import LogFormatterSciNotation
 
 import plotly.graph_objs as go
 import plotly.express as px
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
 
 from thesmuggler import smuggle
 
@@ -44,10 +47,10 @@ df_norm, titulo_x, titulo_y = br.norm_grafico(
     norm_xy='y', crlf='<br>', plotly=True
 )
 
-html = r'..\imgs (nogit)\img.html'
+html_fig = r'..\imgs (nogit)\img.html'
 img = r'..\imgs (nogit)\img.png'
 
-fig1 = px.line(df_norm, x='x', y='y', color='estado', log_y = True, hover_name='estado')
+fig1 = px.line(df_norm, x='x_ott', y='y_ott', color='estado', log_y = True, hover_name='estado')
 
 #fig2 = px.line(df, x='dias_desde_obito_MMhab', y='obitos_7d_MMhab', color='estado',
 #              log_y = True, hover_name='estado')
@@ -61,8 +64,8 @@ fig.update_traces(connectgaps = True,
 fig.update_layout(hovermode='x unified',
                   title_text = 'Evolução da COVID-19 no Brasil (Óbitos)')
 
-fig.update_yaxes(title_text = titulo_y)
-fig.update_xaxes(title_text = titulo_x)
+fig.update_yaxes(title_text = titulo_y['y_ott'])
+fig.update_xaxes(title_text = titulo_x['x_ott'])
 
 log_linear = [{
     'active': 0,
@@ -73,12 +76,12 @@ log_linear = [{
         { 'label': 'Log',
           'method': 'relayout',
           'args': ['yaxis', {'type': 'log',
-                             'title': {'text': titulo_y }}]
+                             'title': {'text': titulo_y['y_ott'] }}]
         },
         { 'label': 'Linear',
           'method': 'relayout',
           'args': ['yaxis', {'type': 'linear',
-                             'title': {'text': titulo_y }}]
+                             'title': {'text': titulo_y['y_ott'] }}]
         }
 ]
 },{
@@ -121,14 +124,14 @@ obitos_casos = [dict(
     buttons=[dict(
         label='óbitos',
         method='restyle',
-        args=[{'x': [ df_norm[df_norm['estado'] == c].x for c in data_estados ],
-               'y': [ df_norm[df_norm['estado'] == c].y for c in data_estados ]
+        args=[{'x': [ df_norm[df_norm['estado'] == c].x_ott for c in data_estados ],
+               'y': [ df_norm[df_norm['estado'] == c].y_ott for c in data_estados ]
                }]
     ), dict(
         label='casos',
         method='restyle',
-        args=[{'x': [ df_norm[df_norm['estado'] == c].x for c in data_estados ],
-               'y': [ df_norm[df_norm['estado'] == c].x for c in data_estados ]
+        args=[{'x': [ df_norm[df_norm['estado'] == c].x_ctt for c in data_estados ],
+               'y': [ df_norm[df_norm['estado'] == c].y_ctt for c in data_estados ]
                }]
     )
     ]
@@ -170,5 +173,25 @@ annot_total_novos = [
 fig.update_layout(updatemenus=log_linear + obitos_casos + total_novos,
                   annotations=annot_log_linear + annot_obitos_casos + annot_total_novos)
 
-fig.write_html(html)
+fig.write_html(html_fig)
 fig.write_image(img)
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+app.layout = html.Div(children=[
+    html.H1(children='Evolução da COVID-19 no Brasil'),
+
+    html.Div(children='''
+        Uma análise de dados da COVID-19 do Brasil e do mundo.
+    '''),
+
+    dcc.Graph(
+        id='covid',
+        figure=fig
+    )
+])
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
