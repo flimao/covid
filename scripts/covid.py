@@ -637,7 +637,8 @@ class covid_brasil:
         t = t[:-2] + ')'
         return t
 
-    def norm_grafico(self, dados, normalizacao, x_orig, y_orig, titulo_x_orig, titulo_y_orig, norm_xy, crlf='\n'):
+    def norm_grafico(self, dados, normalizacao, x_orig, y_orig, titulo_x_orig, titulo_y_orig, norm_xy, crlf='\n',
+                     plotly=False):
         """
         retorna alguns parametros necessarios para plotagem dos graficos com dados normalizados
 
@@ -657,19 +658,116 @@ class covid_brasil:
         f_titulo = self.texto_normalizacao(normalizacao=normalizacao, crlf=crlf)
 
         # aplicar o fator de normalizacao a cada eixo, caso apropriado
-        dados['x'] = dados[x_orig]
-        titulo_x = titulo_x_orig
-        if 'x' in norm_xy:
-            dados['x'] *= f
-            titulo_x += f_titulo
+        if not plotly:
+            dados['x'] = dados[x_orig]
+            titulo_x = titulo_x_orig
+            if 'x' in norm_xy:
+                dados['x'] *= f
+                titulo_x += f_titulo
 
-        dados['y'] = dados[y_orig]
-        titulo_y = titulo_y_orig
-        if 'y' in norm_xy:
-            dados['y'] *= f
-            titulo_y += f_titulo
+            dados['y'] = dados[y_orig]
+            titulo_y = titulo_y_orig
+            if 'y' in norm_xy:
+                dados['y'] *= f
+                titulo_y += f_titulo
 
-        return dados, titulo_x, titulo_y
+            return dados, titulo_x, titulo_y
+        else:
+            titulo_x = dict()
+            titulo_y = dict()
+            titulo_x_orig = dict()
+            titulo_y_orig = dict()
+
+            tipo_graf_all = [
+                ['obitos', 'casos'],
+                ['total', 'novos'],
+                ['temporal', 'atemporal']
+            ]
+
+            for axis in ['x', 'y']:
+                combinations = list(pd.MultiIndex.from_product(tipo_graf_all))
+                if axis == 'x':
+                    key = { k: v for k, v in zip(
+                        combinations,
+                        [
+                            'dias_desde_obito_MMhab', 'obitosAcumulado', 'dias_desde_obito_MMhab', 'obitosAcumulado',
+                            'dias_desde_obito_MMhab', 'casosAcumulado', 'dias_desde_obito_MMhab', 'casosAcumulado'
+                        ]
+                    ) }
+                else:
+                    key = { k: v for k, v in zip(
+                        combinations,
+                        [
+                            'obitosAcumulado', 'obitosNovos', 'obitosNovos', 'obitosNovos',
+                            'casosAcumulado', 'casosNovos', 'casosNovos', 'casosNovos'
+                        ]
+                    ) }
+
+                for comb in combinations:
+                    str_key = axis + '_'
+                    for c in comb:
+                        str_key += c[0]
+
+                    dados[str_key] = dados[key[comb]]
+
+                    # titulos do eixo x
+                    if axis == 'x':
+
+                        # se eixo x for temporal, só existe uma possibilidade: dias desde o começo da pandemia
+                        if str_key.endswith('t'):
+                            titulo_x_orig[str_key] = 'Dias desde 0.1 óbitos / MM hab.'
+
+                        # se eixo x for atemporal, há duas possibilidades: total de óbitos ou total de casos
+                        elif 'o' in str_key:
+                            titulo_x_orig[str_key] = 'Total de óbitos'
+
+                        # caso eixo x seja atemporal mas não seja óbitos, então é total de casos
+                        else:
+                            titulo_x_orig[str_key] = 'Total de casos'
+
+                    else:
+                        mm_str = str(mm_periodo)
+                        # há seis possibilidades para o eixo y.
+                        # se gráfico for atemporal, só há duas possibilidades, novos casos ou novos óbitos
+                        if 'a' in str_key:
+                            if 'o' in str_key:
+                                titulo_y_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
+                            else:
+                                titulo_y_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
+
+                        # se o gráfico for temporal, então há quatro possibilidades para o eixo y
+                        else:
+                            # novos óbitos
+                            if 'o' in str_key:
+                                if 'n' in str_key:
+                                    titulo_y_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + \
+                                                             'dias)'
+
+                                # total de óbitos
+                                else:
+                                    titulo_y_orig[str_key] = 'Total de Óbitos'
+
+                            else:
+                                # novos casos
+                                if 'n' in str_key:
+                                    titulo_y_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + \
+                                                             'dias)'
+
+                                # total de casos
+                                else:
+                                    titulo_y_orig[str_key] = 'Total de casos'
+
+                    titulo_x = titulo_x_orig.copy()
+                    titulo_y = titulo_y_orig.copy()
+                    if axis in norm_xy:
+                        dados[str_key] *= f
+
+                        if axis == 'x':
+                            titulo_x[str_key] = titulo_x_orig[str_key] + f_titulo
+                        else:
+                            titulo_y[str_key] = titulo_y_orig[str_key] + f_titulo
+
+            return dados, titulo_x, titulo_y
 
     def suavizacao(self, janela_mm = mm_periodo):
         """

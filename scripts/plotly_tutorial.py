@@ -41,7 +41,7 @@ df_norm, titulo_x, titulo_y = br.norm_grafico(
     y_orig='obitos_7d_mm',
     titulo_x_orig='Dias desde óbitos = 0,1 / MM hab.',
     titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
-    norm_xy='y', crlf='<br>'
+    norm_xy='y', crlf='<br>', plotly=True
 )
 
 html = r'..\imgs (nogit)\img.html'
