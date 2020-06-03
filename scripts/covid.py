@@ -101,7 +101,28 @@ class covid_brasil:
         # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
 
+        # 2020-06-02: O Ministério da Saúde cagou os dados de população na planilha divulgada diariamente.
+        # devemos consertá-lo
+        # regex: ^((?:\d{1,3}\.)*\d*)
+
+        # preencher populacao de areas dos estados que não estão em nenhum município
+
+        pop_estados = self.covidbr[(self.covidbr.estado.notnull()) & (self.covidbr.codmun.isnull())].\
+                        groupby('coduf').populacaoTCU2019.first()
+        df = self.covidbr.merge(right=pop_estados, on='coduf', how='left')
+        populacaoTCU2019 = df.populacaoTCU2019_x.where(df.populacaoTCU2019_x.notnull(), other=df.populacaoTCU2019_y)
+
+        # filtrar dados espúrios de população
+
+        populacaoTCU2019 = populacaoTCU2019.str.extract(r'^((?:\d{1,3}\.)*\d*)', expand=False).\
+                           str.replace('.','').astype(float)
+
         # converter tipos
+
+        df['populacaoTCU2019'] = populacaoTCU2019
+        df.drop(columns=[ 'populacaoTCU2019_' + mergedir for mergedir in ['x', 'y'] ], inplace=True)
+        self.covidbr = df
+
         self.covidbr = self.covidbr.astype(
             { converter: 'Int64' for converter in ['coduf', 'codmun', 'codRegiaoSaude', 'populacaoTCU2019',
                       'Recuperadosnovos', 'emAcompanhamentoNovos'] }
