@@ -694,10 +694,8 @@ class covid_brasil:
 
             return dados, titulo_x, titulo_y
         else:
-            titulo_x = dict()
-            titulo_y = dict()
-            titulo_x_orig = dict()
-            titulo_y_orig = dict()
+            titulo = dict()
+            titulo_orig = dict()
 
             tipo_graf_all = [
                 ['obitos', 'casos'],
@@ -736,15 +734,15 @@ class covid_brasil:
 
                         # se eixo x for temporal, só existe uma possibilidade: dias desde o começo da pandemia
                         if str_key.endswith('t'):
-                            titulo_x_orig[str_key] = 'Dias desde 0.1 óbitos / MM hab.'
+                            titulo_orig[str_key] = 'Dias desde 0.1 óbitos / MM hab.'
 
                         # se eixo x for atemporal, há duas possibilidades: total de óbitos ou total de casos
                         elif 'o' in str_key:
-                            titulo_x_orig[str_key] = 'Total de óbitos'
+                            titulo_orig[str_key] = 'Total de óbitos'
 
                         # caso eixo x seja atemporal mas não seja óbitos, então é total de casos
                         else:
-                            titulo_x_orig[str_key] = 'Total de casos'
+                            titulo_orig[str_key] = 'Total de casos'
 
                     else:
                         mm_str = str(mm_periodo)
@@ -752,43 +750,39 @@ class covid_brasil:
                         # se gráfico for atemporal, só há duas possibilidades, novos casos ou novos óbitos
                         if 'a' in str_key:
                             if 'o' in str_key:
-                                titulo_y_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
+                                titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
                             else:
-                                titulo_y_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
+                                titulo_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + 'dias)'
 
                         # se o gráfico for temporal, então há quatro possibilidades para o eixo y
                         else:
                             # novos óbitos
                             if 'o' in str_key:
                                 if 'n' in str_key:
-                                    titulo_y_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + \
+                                    titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' + mm_str + \
                                                              'dias)'
 
                                 # total de óbitos
                                 else:
-                                    titulo_y_orig[str_key] = 'Total de Óbitos'
+                                    titulo_orig[str_key] = 'Total de Óbitos'
 
                             else:
                                 # novos casos
                                 if 'n' in str_key:
-                                    titulo_y_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + \
+                                    titulo_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + mm_str + \
                                                              'dias)'
 
                                 # total de casos
                                 else:
-                                    titulo_y_orig[str_key] = 'Total de casos'
+                                    titulo_orig[str_key] = 'Total de casos'
 
-                    titulo_x = titulo_x_orig.copy()
-                    titulo_y = titulo_y_orig.copy()
-                    if axis in norm_xy:
-                        dados[str_key] *= f
+                titulo = titulo_orig.copy()
+                if axis in norm_xy:
+                    for k, v in titulo.items():
+                        dados[k] *= f
+                        titulo[k] += f_titulo
 
-                        if axis == 'x':
-                            titulo_x[str_key] = titulo_x_orig[str_key] + f_titulo
-                        else:
-                            titulo_y[str_key] = titulo_y_orig[str_key] + f_titulo
-
-            return dados, titulo_x, titulo_y
+            return dados, titulo, titulo
 
     def suavizacao(self, janela_mm = mm_periodo):
         """
