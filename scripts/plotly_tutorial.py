@@ -173,55 +173,81 @@ fig.write_image(img)
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
+# elementos da lista
+
+cabecalho = [ html.H1(children='Evolução da COVID-19 no Brasil'),
+              html.Div(children='''
+              Uma análise de dados da COVID-19 do Brasil e do mundo.
+              \n\n\n        
+              ''')
+]
+
+grafico = [
+    dcc.Graph(id='covid',
+              figure=fig
+             )
+]
+
+opcao_municipio = [
+    html.Label('Municípios', className='opcoes-label'),
+    dcc.Dropdown(
+        id='opcao_municipio',
+        options=[
+            {'label': df_mununq.loc[codmun, 'municipio'] + ', ' + df_mununq.loc[codmun, 'estado'], 'value': codmun}
+            for codmun in df_mununq.index
+        ],
+        value=[330330, 330445],
+        multi=True
+    )
+]
+
+opcao_estado = [
+    html.Label('Estados', className='opcoes-label'),
+    dcc.Dropdown(
+        id='opcao_estado',
+        options=[
+            {'label': df_estunq[coduf], 'value': coduf} for coduf in df_estunq.index
+        ],
+        value=[33, 34, 76],
+        multi=True
+    ),
+]
+
+opcao_suavizacao = [
+    html.Label('Suavização', className='opcoes-label'),
+    dcc.RadioItems(
+        id='opcao_suavizacao',
+        options=[
+            {'label': 'Sem suavização', 'value': 0},
+            {'label': 'Média móvel de 7 dias', 'value': 7},
+            {'label': 'Média móvel de 3 dias', 'value': 3},
+            {'label': 'Outra média móvel', 'value': -1}
+        ],
+        value=7
+    ),
+    dcc.Input(
+        id='opcao_suavizacao_custom',
+        value=5, type='number'
+    )
+]
+
+opcoes_lista = [ opcao_municipio + opcao_estado, opcao_suavizacao ]
+
+opcoes_lista_div = [
+    html.Div(children=opcao, className='opcoes')
+    for opcao in opcoes_lista
+]
+
+opcoes_grid = [
+    html.Div(children = opcoes_lista,
+             style={'display': 'grid',
+                    'grid-template-columns': 'repeat(3, 1fr)',
+                    'grid-gap': '30px'
+             })
+]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-app.layout = html.Div(children=[
-    html.H1(children='Evolução da COVID-19 no Brasil'),
+app.layout = html.Div(children = cabecalho + grafico + opcoes_grid)
 
-    html.Div(children='''
-        Uma análise de dados da COVID-19 do Brasil e do mundo.
-        \n\n\n        
-    '''),
-
-    dcc.Graph(
-        id='covid',
-        figure=fig
-    ),
-
-    html.Div(children=[
-
-        html.Label('Municípios'),
-        dcc.Dropdown(
-            options=[
-                {'label': df_mununq.loc[codmun, 'municipio'] + ', ' + df_mununq.loc[codmun, 'estado'], 'value': codmun}
-                for codmun in df_mununq.index
-            ],
-            value=[330330, 330445],
-            multi=True
-        ),
-
-        html.Label('Estados'),
-        dcc.Dropdown(
-            options=[
-                {'label': df_estunq[coduf], 'value': coduf} for coduf in df_estunq.index
-            ],
-            value=[33, 34, 76],
-            multi=True
-        ),
-
-        html.Label('Suavização'),
-        dcc.RadioItems(
-            options=[
-                {'label': 'Sem suavização', 'value': 0},
-                {'label': 'Média móvel de 7 dias', 'value': 7},
-                {'label': 'Média móvel de 3 dias', 'value': 3},
-                {'label': 'Outra média móvel', 'value': -1}
-            ],
-            value=7
-        ),
-        dcc.Input(value=5, type='number'),
-    ], style={'columnCount': 2})
-])
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
+#if __name__ == '__main__':
+#    app.run_server(debug=True)
