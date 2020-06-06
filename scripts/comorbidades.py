@@ -155,7 +155,7 @@ class populacao_mundial:
     processa os dados de população mundial por ano
     """
 
-    def __init__(self, diretorio=None, datadir = 'UN (nogit)'):
+    def __init__(self, diretorio=None, datadir = 'UN'):
     
         # se diretorio for None, corresponde ao diretorio raiz do script
         if diretorio is None:
