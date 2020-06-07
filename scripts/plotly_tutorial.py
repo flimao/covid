@@ -9,25 +9,19 @@ import os.path
 import datetime as dt
 import functools as ft
 import locale
-import seaborn as sns
-#import pymc3 as pm
-import matplotlib.pyplot as plt
-from matplotlib.ticker import LogFormatterSciNotation
 
 import plotly.graph_objs as go
 import plotly.express as px
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+from dash.dependencies import Input, Output
 
 from thesmuggler import smuggle
 
 covid = smuggle('./covid.py')
 
-sns.set(style = 'ticks', rc = { 'grid.color': '.8', 'grid.linestyle': '-'})
-locale.setlocale(locale.LC_ALL,'portuguese_brazil')
-
-# ##
+##
 # parâmetros
 # ##
 mm_periodo = 5
@@ -57,6 +51,13 @@ class covid_plot:
 
         self.dash_builder = {}
         self.dashapp = self.dash_build()
+        self.dashapp.callback(
+            Output(component_id='covid', component_property='figure'),
+            [  # Input(component_id='covid', component_property='figure'),
+                Input(component_id='opcao_estado', component_property='value'),
+                Input(component_id='opcao_municipio', component_property='value')
+            ]
+        )(self.selec_xy)
 
     def construir_indice(self):
         """
@@ -224,13 +225,6 @@ class covid_plot:
                           # annotations=annot_obitos_casos + annot_total_novos)
                           )
 
-    def selec_xy(self):
-        """
-        selecionar x e y com base nas opções
-        :return: string x e y
-        """
-        pass
-
     def __dash_cabecalho(self):
         """
 
@@ -355,7 +349,7 @@ class covid_plot:
         self.dash_builder['opcoes_grid'] = [
             html.Div(children=opcoes_lista_div,
                      style={'display': 'grid',
-                            'grid-template-columns': 'repeat(4, 1fr)',
+                            'grid-template-columns': 'repeat(2, 1fr)',
                             'grid-gap': '30px'
                             })
         ]
@@ -380,6 +374,18 @@ class covid_plot:
         app.layout = html.Div(children=ft.reduce(lambda x,y:x+y, self.dash_builder.values()))
 
         return app
+
+    def selec_xy(self, data_estados, data_municipios, normalizacao=('percapita',)):
+        """
+        selecionar x e y com base nas opções
+        :return: string x e y
+        """
+        self.fig, self.df_norm, self.titulo = self.construir_figura(
+            data_estados, data_municipios, normalizacao
+        )
+        self.atualizar_figura()
+        self.updatemenu(data_estados, data_municipios)
+        return self.fig
 
     def salvar(self, html_fig=None, img=None):
         """
