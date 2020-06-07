@@ -697,7 +697,6 @@ class covid_brasil:
 
             return dados, titulo_x, titulo_y
         else:
-            titulo = dict()
             titulo_orig = dict()
 
             tipo_graf_all = [
