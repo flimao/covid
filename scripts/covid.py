@@ -403,6 +403,9 @@ class covid_brasil:
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'municipio'] = 'Brasil'
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'estado'] = 'Brasil'
 
+        # acertando o resumo brasileiro para a função de plotagem
+        self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'codmun'] = 760001
+
     def consertar_municipios(self):
         """
         consertar dados de municipios
