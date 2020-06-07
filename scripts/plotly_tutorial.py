@@ -39,19 +39,39 @@ class covid_plot:
         self.br = br # classe covid_brasil
         self.world = world # classe para representar o mundo (ainda não implementada)
 
-        br = covid.covid_brasil(diretorio=None, graficos=False)
+        self.estados_key, self.municipios_key = self.construir_indice()
 
-        data_estados = ['Brasil', 'RJ']
-        data_municipios = ['Brasil', 'Niterói', 'Rio de Janeiro']
-        normalizacao = ['percapita']
-
-        self.fig, self.df_norm, self.titulo = self.construir_figura(data_estados, data_municipios, normalizacao)
+        self.fig, self.df_norm, self.titulo = self.construir_figura(
+            data_estados, data_municipios, normalizacao
+        )
         self.atualizar_figura()
         self.updatemenu(data_estados, data_municipios)
         self.salvar(html_fig = r'..\imgs (nogit)\img.html')
 
         self.dash_builder = {}
         self.dashapp = self.dash_build()
+
+    def construir_indice(self):
+        """
+        Construir índice de estados e municípios
+        :return: índice de estados e munícipios
+        """
+        # construindo referencia de coduf e codmun
+        df_exc = br.covidrel[br.mask_exc_resumo_rel]
+        estados_key = df_exc.groupby('coduf')['estado'].first()
+        municipios_key = df_exc.groupby('codmun')[['estado', 'municipio']].first()
+
+        # comparando com Brasil
+        est_br = pd.Series(['Brasil'], index=pd.Index([76], name='coduf'), name='estado')
+        mun_br = pd.DataFrame([['Brasil', 'Brasil'],],
+                              columns=['estado', 'municipio'],
+                              index=pd.Index([76001], name='codmun')
+                              )
+
+        estados_key = pd.concat([estados_key, est_br])
+        municipios_key = pd.concat([municipios_key, mun_br])
+
+        return estados_key, municipios_key
 
     def construir_figura(self, data_estados, data_municipios, normalizacao):
         """
@@ -61,11 +81,6 @@ class covid_plot:
 
         br = self.br
         df = br.covidrel[(~br.mask_exc_resumo_rel) & (br.covidrel['estado'].isin(data_estados))]
-        df_est = br.covidrel[br.mask_exc_resumo_rel]
-        self.estados_key = df_est.groupby('coduf')['estado'].first()
-
-        df_mun = br.covidrel[br.mask_exc_resumo_rel]
-        self.municipios_key = df_mun.groupby('codmun')[['estado', 'municipio']].first()
 
         df_norm, titulo, _ = br.norm_grafico(
             dados=df,
@@ -80,7 +95,7 @@ class covid_plot:
         html_fig = r'..\imgs (nogit)\img.html'
         img = r'..\imgs (nogit)\img.png'
 
-        fig1 = px.line(df_norm, x='x_ott', y='y_ott', color='estado', log_y=True, hover_name='estado')
+        fig1 = px.line(df_norm, x='x_ont', y='y_ont', color='estado', log_y=True, hover_name='estado')
 
         fig = fig1
 
@@ -331,5 +346,5 @@ br = covid.covid_brasil(diretorio = None, graficos = False)
 plt = covid_plot(br)
 
 if __name__ == '__main__':
-    if os.environ['PYCHARM_HOSTED'] == 0:
+    if os.environ.get('PYCHARM_HOSTED', default=0) == 0:
         plt.dashapp.run_server(debug=True)
