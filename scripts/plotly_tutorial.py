@@ -41,6 +41,13 @@ class covid_plot:
 
         self.estados_key, self.municipios_key = self.construir_indice()
 
+        # Brasil e RJ
+        data_estados = [76, 33]
+
+        # Brasil e Niterói, RJ
+        data_municipios = [ 760001, 330330 ]
+        normalizacao = ['percapita']
+
         self.fig, self.df_norm, self.titulo = self.construir_figura(
             data_estados, data_municipios, normalizacao
         )
@@ -80,7 +87,7 @@ class covid_plot:
         """
 
         br = self.br
-        df = br.covidrel[(~br.mask_exc_resumo_rel) & (br.covidrel['estado'].isin(data_estados))]
+        df = br.covidrel[(~br.mask_exc_resumo_rel) & (br.covidrel['coduf'].isin(data_estados))]
 
         df_norm, titulo, _ = br.norm_grafico(
             dados=df,
@@ -91,9 +98,6 @@ class covid_plot:
             titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
             norm_xy='y', crlf='<br>', plotly=True
         )
-
-        html_fig = r'..\imgs (nogit)\img.html'
-        img = r'..\imgs (nogit)\img.png'
 
         fig1 = px.line(df_norm, x='x_ont', y='y_ont', color='estado', log_y=True, hover_name='estado')
 
@@ -220,6 +224,13 @@ class covid_plot:
                           # annotations=annot_obitos_casos + annot_total_novos)
                           )
 
+    def selec_xy(self):
+        """
+        selecionar x e y com base nas opções
+        :return: string x e y
+        """
+        pass
+
     def __dash_cabecalho(self):
         """
 
@@ -294,7 +305,47 @@ class covid_plot:
             )
         ]
 
-        opcoes_lista = [opcao_municipio + opcao_estado, opcao_suavizacao]
+        opcao_obitos_casos = [
+            html.Label('Óbitos ou casos', className='opcoes-label'),
+            dcc.RadioItems(
+                id='opcao_obitos_casos',
+                options=[
+                    {'label': 'Óbitos', 'value': 'óbitos'},
+                    {'label': 'Casos', 'value': 'casos'}
+                ],
+                value='óbitos'
+            )
+        ]
+
+        opcao_total_novos = [
+            html.Label('# total ou # novos', className='opcoes-label'),
+            dcc.RadioItems(
+                id='opcao_total_novos',
+                options=[
+                    {'label': '# total', 'value': 'total'},
+                    {'label': '# novos', 'value': 'novos'}
+                ],
+                value='total'
+            )
+        ]
+
+        opcao_eixox_tempo = [
+            html.Label('Eixo X: Tempo ou Atemporal', className='opcoes-label'),
+            dcc.RadioItems(
+                id='opcao_eixox_tempo',
+                options=[
+                    {'label': 'Tempo', 'value': 'tempo'},
+                    {'label': 'Atemporal', 'value': 'atemporal'}
+                ],
+                value='tempo'
+            )
+        ]
+
+        opcoes_lista = [opcao_municipio + opcao_estado,
+                        opcao_suavizacao,
+                        opcao_obitos_casos + opcao_total_novos,
+                        opcao_eixox_tempo
+                        ]
 
         opcoes_lista_div = [
             html.Div(children=opcao, className='opcoes')
@@ -304,7 +355,7 @@ class covid_plot:
         self.dash_builder['opcoes_grid'] = [
             html.Div(children=opcoes_lista_div,
                      style={'display': 'grid',
-                            'grid-template-columns': 'repeat(3, 1fr)',
+                            'grid-template-columns': 'repeat(4, 1fr)',
                             'grid-gap': '30px'
                             })
         ]
@@ -323,7 +374,8 @@ class covid_plot:
             _ = f(self)
 
         external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-        app = dash.Dash('COVID-19: Dados, evolução e prognóstico', external_stylesheets=external_stylesheets)
+        app = dash.Dash('COVID-19: Dados, evolução e prognóstico',
+                        external_stylesheets=external_stylesheets)
 
         app.layout = html.Div(children=ft.reduce(lambda x,y:x+y, self.dash_builder.values()))
 
@@ -334,6 +386,9 @@ class covid_plot:
         salvar as figuras
         :return: None
         """
+        html_fig = r'..\imgs (nogit)\img.html'
+        img = r'..\imgs (nogit)\img.png'
+
         if html_fig is not None:
             self.fig.write_html(html_fig)
 
