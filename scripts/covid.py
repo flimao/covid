@@ -786,20 +786,26 @@ class covid_brasil:
 
             return dados, titulo, titulo
 
-    def suavizacao(self, janela_mm = mm_periodo):
+    def suavizacao(self, janela_mm = mm_periodo, trilhas=None):
         """
         suavização via média móvel com período definido anteriormente
         :return: None
         """
 
-        mm_aplicar = ['obitosAcumulado', 'obitos_7d',
+        mm_aplicar = trilhas or ['obitosAcumulado', 'obitos_7d',
                       'casosAcumulado', 'casos_7d',
                       'casosNovo']
-        mm_aplicado = [ mm + '_mm' for mm in mm_aplicar ]
 
-        self.covidbr[mm_aplicado] = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
+        df = self.covidbr.groupby(self.agrupar_full)[mm_aplicar].apply(
             lambda x: x.rolling(janela_mm).mean()
         )
+        
+        if trilhas is None:
+            mm_aplicado = [ mm + '_mm' for mm in mm_aplicar ]
+            self.covidbr[mm_aplicado] = df
+            
+        else:
+            return df
 
     def dias_desde_obito_percapita(self):
         """
