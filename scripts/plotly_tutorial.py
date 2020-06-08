@@ -313,7 +313,7 @@ class covid_plot:
                     {'label': 'Óbitos', 'value': 'obitos'},
                     {'label': 'Casos', 'value': 'casos'}
                 ],
-                value='óbitos'
+                value='obitos'
             )
         ]
 
@@ -381,6 +381,7 @@ class covid_plot:
 
         return app
 
+    # dash app callback
     def atualizar_grafico(self,
                           data_estados, data_municipios,
                           obitos_casos='obitos', total_novos='total', tempo_atempo='tempo',
