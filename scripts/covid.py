@@ -778,11 +778,11 @@ class covid_brasil:
                                 else:
                                     titulo_orig[str_key] = 'Total de casos'
 
-                titulo = titulo_orig.copy()
-                if axis in norm_xy:
-                    for k, v in titulo.items():
-                        dados[k] *= f
-                        titulo[k] += f_titulo
+            titulo = titulo_orig.copy()
+            for k, v in titulo.items():
+                if k[0] in norm_xy:
+                    dados[k] *= f
+                    titulo[k] += f_titulo
 
             return dados, titulo, titulo
 
