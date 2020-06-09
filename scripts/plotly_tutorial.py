@@ -56,12 +56,14 @@ class covid_plot:
         self.dash_builder = {}
         self.dashapp = self.dash_build()
         self.dashapp.callback(
-            Output(component_id='covid', component_property='figure'),
+            [ Output(component_id='covid', component_property='figure'),
+              Output(component_id='debug', component_property='children')],
             [   Input(component_id='opcao_estado', component_property='value'),
                 Input(component_id='opcao_municipio', component_property='value'),
                 Input(component_id='opcao_obitos_casos', component_property='value'),
                 Input(component_id='opcao_total_novos', component_property='value'),
-                Input(component_id='opcao_eixox_tempo', component_property='value')
+                Input(component_id='opcao_eixox_tempo', component_property='value'),
+                Input(component_id='opcao_suavizacao', component_property='value')
             ]
         )(self.atualizar_grafico)
 
@@ -87,32 +89,33 @@ class covid_plot:
 
         return estados_key, municipios_key
 
-    def construir_figura(self, data_estados, data_municipios, normalizacao, x, y):
+    def construir_figura(self, data_estados, data_municipios, normalizacao,
+                         x='x_ott', y='y_ott',
+                         suavizacao=7, norm_xy='y'):
         """
         construir o plot do plotly
         :return: dicionario Figure do Plotly
         """
-
+        
         br = self.br
         df = br.covidrel[(~br.mask_exc_resumo_rel) & (br.covidrel['coduf'].isin(data_estados))]
 
         df_norm, titulo, _ = br.norm_grafico(
             dados=df,
             normalizacao=normalizacao,
-            x_orig='dias_desde_obito_MMhab',
-            y_orig='obitos_7d_mm',
-            titulo_x_orig='Dias desde óbitos = 0,1 / MM hab.',
-            titulo_y_orig='Novos Óbitos (últ. 7 dias, média móvel de ' + str(mm_periodo) + ' dias)',
-            norm_xy='y', crlf='<br>', plotly=True
+            norm_xy=norm_xy, crlf='<br>', plotly=True
         )
-
-        fig1 = px.line(df_norm, x=x, y=y, color='estado', log_y=True, hover_name='estado')
+        
+        x_s = x + str(suavizacao)
+        y_s = y + str(suavizacao)
+        
+        fig1 = px.line(df_norm, x=x_s, y=y_s, color='estado', log_y=True, hover_name='estado')
 
         fig = fig1
 
         return fig, df_norm, titulo
 
-    def atualizar_figura(self, x, y):
+    def atualizar_figura(self, x, y, suavizacao=7):
         """
         atualizar a figura com
         :return:
@@ -124,16 +127,23 @@ class covid_plot:
 
         self.fig.update_layout(hovermode='x unified',
                           title_text='Evolução da COVID-19 no Brasil (Óbitos)')
+        
+        x_s = x + str(suavizacao)
+        y_s = y + str(suavizacao)
+        
+        self.fig.update_yaxes(title_text=self.titulo[y_s])
+        self.fig.update_xaxes(title_text=self.titulo[x_s])
 
-        self.fig.update_yaxes(title_text=self.titulo[y])
-        self.fig.update_xaxes(title_text=self.titulo[x])
-
-    def updatemenu(self, data_estados, data_municipios, x='x_ott', y='y_ott'):
+    def updatemenu(self, data_estados, data_municipios, x='x_ott', y='y_ott',
+                   suavizacao=7):
         """
         construir updatemenu
         :return: None
         """
         df_norm = self.df_norm
+    
+        x_s = x + str(suavizacao)
+        y_s = y + str(suavizacao)
 
         log_linear = [{
             'active': 0,
@@ -144,12 +154,12 @@ class covid_plot:
                 {'label': 'Log',
                  'method': 'relayout',
                  'args': ['yaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[y]}}]
+                                    'title': {'text': self.titulo[y_s]}}]
                  },
                 {'label': 'Linear',
                  'method': 'relayout',
                  'args': ['yaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[y]}}]
+                                    'title': {'text': self.titulo[y_s]}}]
                  }
             ]
         }, {
@@ -161,12 +171,12 @@ class covid_plot:
                 {'label': 'Log',
                  'method': 'relayout',
                  'args': ['xaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[x]}}]
+                                    'title': {'text': self.titulo[x_s]}}]
                  },
                 {'label': 'Linear',
                  'method': 'relayout',
                  'args': ['xaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[x]}}]
+                                    'title': {'text': self.titulo[x_s]}}]
                  }
             ]
         }]
@@ -179,16 +189,16 @@ class covid_plot:
             buttons=[dict(
                 label='óbitos',
                 method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x] for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y] for c in data_estados]
+                args=[{'x': [df_norm[df_norm['estado'] == c][x_s] for c in data_estados],
+                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados]
                        }]
             ), dict(
                 label='casos',
                 method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x]for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y] for c in data_estados],
-                       'xaxis': {'title': {'text': self.titulo[x]}},
-                       'yaxis': {'title': {'text': self.titulo[y]}},
+                args=[{'x': [df_norm[df_norm['estado'] == c][x_s]for c in data_estados],
+                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados],
+                       'xaxis': {'title': {'text': self.titulo[x_s]}},
+                       'yaxis': {'title': {'text': self.titulo[y_s]}},
                        }]
             )
             ]
@@ -236,28 +246,18 @@ class covid_plot:
 
         :return: None
         """
-        self.dash_builder['cabecalho'] =\
-            [ html.H1(children='Evolução da COVID-19 no Brasil'),
-                      html.Div(children='''
+        self.dash_builder['cabecalho'] =[
+            html.H1(children='Evolução da COVID-19 no Brasil'),
+            html.Div(children='''
                       Uma análise de dados da COVID-19 do Brasil e do mundo.
                       \n\n\n        
-                      ''')
-            ]
-
-    def __dash_grafico(self):
+                      '''),
+            html.Div(id='debug', children='')
+         ]
+    
+    def __dash_est_mun(self):
         """
-
-        :return: None
-        """
-        self.dash_builder['grafico'] = [
-            dcc.Graph(id='covid',
-                      figure=self.fig
-                      )
-        ]
-
-    def __dash_opcoes(self):
-        """
-
+        montar a seleção de estados e municipios
         :return: None
         """
         opcao_municipio = [
@@ -286,6 +286,40 @@ class covid_plot:
                 multi=True
             ),
         ]
+        
+        opcoes_lista = [opcao_estado,
+                        opcao_municipio
+                        ]
+        
+        opcoes_est_mun = [
+            html.Div(children=opcao, className='opcoes')
+            for opcao in opcoes_lista
+        ]
+        
+        self.dash_builder['est_mun'] = [
+            html.Div(children=opcoes_est_mun,
+                     style={'display': 'grid',
+                            'grid-template-columns': 'repeat(2, 1fr)',
+                            'grid-gap': '30px'
+                            })
+        ]
+        
+    def __dash_grafico(self):
+        """
+
+        :return: None
+        """
+        self.dash_builder['grafico'] = [
+            dcc.Graph(id='covid',
+                      figure=self.fig
+                      )
+        ]
+
+    def __dash_opcoes(self):
+        """
+
+        :return: None
+        """
 
         opcao_suavizacao = [
             html.Label('Suavização', className='opcoes-label'),
@@ -293,15 +327,11 @@ class covid_plot:
                 id='opcao_suavizacao',
                 options=[
                     {'label': 'Sem suavização', 'value': 0},
-                    {'label': 'Média móvel de 7 dias', 'value': 7},
                     {'label': 'Média móvel de 3 dias', 'value': 3},
-                    {'label': 'Outra média móvel', 'value': -1}
+                    {'label': 'Média móvel de 5 dias', 'value': 5},
+                    {'label': 'Média móvel de 7 dias', 'value': 7}
                 ],
                 value=7
-            ),
-            dcc.Input(
-                id='opcao_suavizacao_custom',
-                value=5, type='number'
             )
         ]
 
@@ -341,9 +371,8 @@ class covid_plot:
             )
         ]
 
-        opcoes_lista = [opcao_municipio + opcao_estado,
-                        opcao_suavizacao,
-                        opcao_obitos_casos + opcao_total_novos,
+        opcoes_lista = [opcao_suavizacao,
+                        opcao_obitos_casos, opcao_total_novos,
                         opcao_eixox_tempo
                         ]
 
@@ -355,7 +384,7 @@ class covid_plot:
         self.dash_builder['opcoes_grid'] = [
             html.Div(children=opcoes_lista_div,
                      style={'display': 'grid',
-                            'grid-template-columns': 'repeat(2, 1fr)',
+                            'grid-template-columns': 'repeat(4, 1fr)',
                             'grid-gap': '30px'
                             })
         ]
@@ -385,20 +414,24 @@ class covid_plot:
     def atualizar_grafico(self,
                           data_estados, data_municipios,
                           obitos_casos='obitos', total_novos='total', tempo_atempo='tempo',
-                          normalizacao=('percapita',)):
+                          suavizacao=7,
+                          normalizacao=('percapita',)
+                          ):
         """
         selecionar x e y com base nas opções
         :return: string x e y
         """
         x, y = self.selec_xy(obitos_casos, total_novos, tempo_atempo)
-
+        
         self.fig, self.df_norm, self.titulo = self.construir_figura(
-            data_estados, data_municipios, normalizacao,
-            x, y
+            x=x, y=y,
+            data_estados=data_estados, data_municipios=data_municipios,
+            normalizacao=normalizacao, suavizacao=suavizacao,
+            norm_xy='y'
         )
-        self.atualizar_figura(x, y)
-        self.updatemenu(data_estados, data_municipios, x, y)
-        return self.fig
+        self.atualizar_figura(x, y, suavizacao=suavizacao)
+        self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
+        return self.fig, x + str(suavizacao)
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
         """
