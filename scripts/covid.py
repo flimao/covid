@@ -9,6 +9,7 @@ import os.path
 import datetime as dt
 import locale
 import seaborn as sns
+import pickle as pkl
 #import pymc3 as pm
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatterSciNotation
@@ -33,22 +34,39 @@ class covid_brasil:
     da COVID-19
     """
 
-    def __init__(self, diretorio=None, graficos=True):
+    def __init__(self, diretorio=None, graficos=True, dumbcache=False):
 
         # se diretorio for None, corresponde ao diretorio raiz do script
 
         if diretorio is None:
             diretorio = r'..'
 
-        self.covidbr, self.areas, self.areas_estados, self.demobr, self.demomun = self.ler_dados(diretorio)
+        # retorna os objetos guardados em um arquivo chamado br_store.dmp na pasta "cache"
+        if dumbcache is True:
+            self.dumbcache_load()
 
-        self.preproc()
-        self.transform()
+        else:
+            self.covidbr, self.areas, \
+            self.areas_estados, self.demobr, \
+            self.demomun = self.ler_dados(diretorio)
+
+            self.preproc()
+            self.transform()
+
         if graficos:
             self.graficos()
 
-    def constantes(self):
-        pass
+    def dumbcache_dump(self):
+        """
+        salva os dados para o arquivo br_store.dmp na pasta 'cache'
+        dados a serem salvos: self
+        :return: None
+        """
+        obj = self
+
+        DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+        with open(DUMBCACHE, 'wb') as f:
+            pkl.dump(obj, f)
 
     def ler_dados(self, diretorio):
         """
@@ -1275,6 +1293,15 @@ class covid_brasil:
             axs = f(self, arg, normalizacao)
             self.eixos += axs
 
+
+def dumbcache_load():
+    """
+    carrega os dados salvos via pickle na pasta cache, no arquivo br_store.dmp
+    :return: instancia da classe covid_brasil
+    """
+    DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+    with open(DUMBCACHE, 'rb') as f:
+        return pkl.load(f)
 
 br = covid_brasil(diretorio = None, graficos = False)
 
