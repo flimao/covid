@@ -20,6 +20,7 @@ from dash.dependencies import Input, Output
 from thesmuggler import smuggle
 
 covid = smuggle('./covid.py')
+covid_brasil = covid.covid_brasil
 
 ##
 # parâmetros
@@ -422,6 +423,12 @@ class covid_plot:
         :return: string x e y
         """
         x, y = self.selec_xy(obitos_casos, total_novos, tempo_atempo)
+
+        # acessar figura antes da atualização para saber o estado dos botoes de escala dos eixos
+        fig_old = self.dashapp.layout.children[4].figure
+
+        x_log = fig_old['layout']['updatemenus'][1]['active']
+        y_log = fig_old['layout']['updatemenus'][0]['active']
         
         self.fig, self.df_norm, self.titulo = self.construir_figura(
             x=x, y=y,
@@ -429,8 +436,16 @@ class covid_plot:
             normalizacao=normalizacao, suavizacao=suavizacao,
             norm_xy='y'
         )
+
         self.atualizar_figura(x, y, suavizacao=suavizacao)
         self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
+
+        # modificar estados dos botoes de escala dos eixos para estado anterior
+        # eixo x
+        self.fig['layout']['updatemenus'][1]['active'] = x_log
+        # eixo y
+        self.fig['layout']['updatemenus'][0]['active'] = y_log
+
         return self.fig, x + str(suavizacao)
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
@@ -461,8 +476,9 @@ class covid_plot:
         if img is not None:
             self.fig.write_image(img)
 
-
-br = covid.covid_brasil(diretorio = None, graficos = False)
+# carregar o cache ao inves de processar os dados
+# br = covid.covid_brasil(diretorio = None, graficos = False)
+br = covid.dumbcache_load()
 
 plt = covid_plot(br)
 

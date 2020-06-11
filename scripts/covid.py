@@ -1303,7 +1303,8 @@ def dumbcache_load():
     with open(DUMBCACHE, 'rb') as f:
         return pkl.load(f)
 
-br = covid_brasil(diretorio = None, graficos = False)
+if __name__ == '__main__':
+    br = covid_brasil(diretorio = None, graficos = False)
 
-cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
-cbr = cbr.drop(columns=['municipio', 'codmun'])
+    cbr = br.covidrel[~br.mask_exc_resumo_rel].groupby(['regiao', 'estado', 'data']).last()
+    cbr = cbr.drop(columns=['municipio', 'codmun'])
