@@ -67,7 +67,10 @@ class covid_plot:
                 Input(component_id='opcao_obitos_casos', component_property='value'),
                 Input(component_id='opcao_total_novos', component_property='value'),
                 Input(component_id='opcao_eixox_tempo', component_property='value'),
-                Input(component_id='opcao_suavizacao', component_property='value')
+                Input(component_id='opcao_suavizacao', component_property='value'),
+                Input(component_id='opcao_norm_pop', component_property='value'),
+                Input(component_id='opcao_norm_extra', component_property='value'),
+                Input(component_id='opcao_norm_xy', component_property='value')
             ]
         )(self.atualizar_grafico)
 
@@ -257,10 +260,9 @@ class covid_plot:
         """
         self.dash_builder['cabecalho'] =[
             html.H1(children='Evolução da COVID-19 no Brasil'),
-            html.Div(children='''
-                      Uma análise de dados da COVID-19 do Brasil e do mundo.
-                      \n\n\n        
-                      '''),
+            dcc.Markdown('''
+            Uma análise dos dados da pandemia até o momento.
+            ''') ,
          ]
     
     def __dash_est_mun(self):
@@ -305,6 +307,8 @@ class covid_plot:
         ]
         
         self.dash_builder['est_mun'] = [
+            dcc.Markdown('---'),
+            html.Label('Seleção', className='secao-titulo'),
             html.Div(children=opcoes_est_mun,
                      style={'display': 'grid',
                             'grid-template-columns': 'repeat(2, 1fr)',
@@ -379,9 +383,48 @@ class covid_plot:
             )
         ]
 
+        norm_obrig = dcc.RadioItems(
+                id='opcao_norm_pop', className='opcoes-table',
+                options= [
+                    {'label': 'Sem norm. pop.', 'value': 0 },
+                    {'label': 'Per capita', 'value': 'percapita'},
+                    {'label': 'Por dens. demográf.', 'value': 'densidade_demografica' }
+                ],
+                value='percapita'
+        )
+
+        norm_extra = dcc.Checklist(
+            id='opcao_norm_extra', className='opcoes-table',
+            options=[
+                {'label': '% idosos', 'value': 'perfil_demografico'}
+            ],
+            value=[]
+        )
+
+        norm_xy = dcc.Checklist(
+            id='opcao_norm_xy', className='opcoes-table',
+            options=[
+                {'label': 'Eixo X', 'value': 'x'},
+                {'label': 'Eixo Y', 'value': 'y'}
+            ],
+            value=['y']
+        )
+
+        opcao_eixos = [
+            html.Label('Normalização', className='opcoes-label'),
+            html.Div([
+                html.Div([norm_obrig, norm_extra]),
+                norm_xy
+            ], style={'display': 'grid',
+                      'grid-template-columns': 'repeat(2, 1fr)',
+                        })
+
+        ]
+
         opcoes_lista = [opcao_suavizacao,
                         opcao_obitos_casos, opcao_total_novos,
-                        opcao_eixox_tempo
+                        opcao_eixox_tempo,
+                        opcao_eixos
                         ]
 
         opcoes_lista_div = [
@@ -390,10 +433,10 @@ class covid_plot:
         ]
 
         self.dash_builder['opcoes_grid'] = [
-            html.Div('Opções'),
+            html.Div('Opções', className='secao-titulo'),
             html.Div(children=opcoes_lista_div,
                      style={'display': 'grid',
-                            'grid-template-columns': 'repeat(4, 1fr)',
+                            'grid-template-columns': 'repeat(5, 1fr)',
                             'grid-gap': '30px'
                             })
         ]
@@ -421,9 +464,9 @@ class covid_plot:
             _ = f(self)
 
         external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-        app = dash.Dash('COVID-19: Dados, evolução e prognóstico',
+        app = dash.Dash('covid',
                         external_stylesheets=external_stylesheets)
-
+        app.title = 'COVID-19'
         app.layout = html.Div(children=ft.reduce(lambda x,y:x+y, self.dash_builder.values()))
 
         return app
@@ -433,7 +476,9 @@ class covid_plot:
                           data_estados, data_municipios,
                           obitos_casos='obitos', total_novos='total', tempo_atempo='tempo',
                           suavizacao=7,
-                          normalizacao=('percapita',)
+                          normalizacao_pop='percapita',
+                          normalizacao_extra=[],
+                          norm_xy_list=['y']
                           ):
         """
         selecionar x e y com base nas opções
@@ -446,12 +491,19 @@ class covid_plot:
 
         x_log = fig_old['layout']['xaxis']['type'] or 'linear'
         y_log = fig_old['layout']['yaxis']['type'] or 'linear'
+
+        # normalizacao
+        normalizacao = [ normalizacao_pop ] + normalizacao_extra
+        if len(norm_xy_list)>0:
+            norm_xy = ft.reduce(lambda x,y:x+y, norm_xy_list)
+        else:
+            norm_xy = ''
         
         self.fig, self.df_norm, self.titulo = self.construir_figura(
             x=x, y=y,
             data_estados=data_estados, data_municipios=data_municipios,
             normalizacao=normalizacao, suavizacao=suavizacao,
-            norm_xy='y'
+            norm_xy=norm_xy
         )
 
         self.atualizar_figura(x, y, suavizacao=suavizacao)
