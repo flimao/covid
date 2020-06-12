@@ -56,6 +56,9 @@ class covid_plot:
 
         self.dash_builder = {}
         self.dashapp = self.dash_build()
+
+        # callbacks
+
         self.dashapp.callback(
             [ Output(component_id='covid', component_property='figure'),
               Output(component_id='debug', component_property='children')],
@@ -67,6 +70,11 @@ class covid_plot:
                 Input(component_id='opcao_suavizacao', component_property='value')
             ]
         )(self.atualizar_grafico)
+
+        self.dashapp.callback(
+            Output(component_id='btndebug', component_property='children'),
+            [Input(component_id='btn', component_property='n_clicks')]
+        )(self.update_regular)
 
     def construir_indice(self):
         """
@@ -253,7 +261,6 @@ class covid_plot:
                       Uma análise de dados da COVID-19 do Brasil e do mundo.
                       \n\n\n        
                       '''),
-            html.Div(id='debug', children='')
          ]
     
     def __dash_est_mun(self):
@@ -383,11 +390,21 @@ class covid_plot:
         ]
 
         self.dash_builder['opcoes_grid'] = [
+            html.Div('Opções'),
             html.Div(children=opcoes_lista_div,
                      style={'display': 'grid',
                             'grid-template-columns': 'repeat(4, 1fr)',
                             'grid-gap': '30px'
                             })
+        ]
+
+    def __dash_debug(self):
+        self.dash_builder['debug'] = [
+            html.Label('Texto debug:'),
+            html.Div(id='debug', children=''),
+            html.Label('Botão Debug:'),
+            html.Div(id='btndebug', children=''),
+            html.Button('Clique aqui!', id='btn', n_clicks=0)
         ]
 
     def dash_build(self):
@@ -425,10 +442,10 @@ class covid_plot:
         x, y = self.selec_xy(obitos_casos, total_novos, tempo_atempo)
 
         # acessar figura antes da atualização para saber o estado dos botoes de escala dos eixos
-        fig_old = self.dashapp.layout.children[4].figure
+        fig_old = self.get_app_id(id='covid').figure
 
-        x_log = fig_old['layout']['updatemenus'][1]['active']
-        y_log = fig_old['layout']['updatemenus'][0]['active']
+        x_log = fig_old['layout']['xaxis']['type'] or 'linear'
+        y_log = fig_old['layout']['yaxis']['type'] or 'linear'
         
         self.fig, self.df_norm, self.titulo = self.construir_figura(
             x=x, y=y,
@@ -442,11 +459,13 @@ class covid_plot:
 
         # modificar estados dos botoes de escala dos eixos para estado anterior
         # eixo x
-        self.fig['layout']['updatemenus'][1]['active'] = x_log
+        self.fig['layout']['xaxis']['type'] = x_log
         # eixo y
-        self.fig['layout']['updatemenus'][0]['active'] = y_log
+        self.fig['layout']['yaxis']['type'] = y_log
 
-        return self.fig, x + str(suavizacao)
+        debug = self.fig['layout']['xaxis']['type'] + '<br>' + x_log
+
+        return self.fig, debug
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
         """
@@ -475,6 +494,20 @@ class covid_plot:
 
         if img is not None:
             self.fig.write_image(img)
+
+    def get_app_id(self, id):
+        return self.dashapp.layout._get_set_or_delete(id=id, operation='get')
+
+    def set_app_id(self, id, new):
+        return self.dashapp.layout._get_set_or_delete(id=id, operation='set', new_item=new)
+
+    def update_regular(self, n_clicks):
+        #fig = self.get_app_id(id='covid').figure
+        fig = self.fig
+        txt1 = fig['layout']['xaxis']['type'] or ''
+        txt2 = fig['layout']['updatemenus'][1]['active']
+        txt = 'Escala eixo X: ' + txt1 + '<br>'+ 'Seleção do botão da escala: ' + str(txt2)
+        return txt
 
 # carregar o cache ao inves de processar os dados
 # br = covid.covid_brasil(diretorio = None, graficos = False)
