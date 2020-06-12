@@ -62,6 +62,7 @@ docs/_build/
 target/
 
 # arquivos espeficos
+cache/
 *(nogit)*
 ~*
 .idea/
