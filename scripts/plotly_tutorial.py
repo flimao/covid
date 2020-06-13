@@ -493,7 +493,10 @@ class covid_plot:
         y_log = fig_old['layout']['yaxis']['type'] or 'linear'
 
         # normalizacao
-        normalizacao = [ normalizacao_pop ] + normalizacao_extra
+        normalizacao = normalizacao_extra
+        if normalizacao_pop != 0:
+            normalizacao += [ normalizacao_pop ]
+
         if len(norm_xy_list)>0:
             norm_xy = ft.reduce(lambda x,y:x+y, norm_xy_list)
         else:
