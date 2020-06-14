@@ -697,6 +697,8 @@ class covid_brasil:
         # calcular o fator de normalizacao
         f = self.fator_normalizacao(dados=dados, normalizacao=normalizacao)
         f_titulo = self.texto_normalizacao(normalizacao=normalizacao, crlf=crlf)
+        if f_titulo is None:
+            f_titulo = ''
 
         # aplicar o fator de normalizacao a cada eixo, caso apropriado
         if not plotly:
