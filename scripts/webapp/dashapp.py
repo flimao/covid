@@ -19,7 +19,7 @@ from dash.dependencies import Input, Output
 
 from thesmuggler import smuggle
 
-covid = smuggle('./covid.py')
+covid = smuggle('../covid.py')
 covid_brasil = covid.covid_brasil
 
 ##
