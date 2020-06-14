@@ -127,15 +127,19 @@ class covid_plot:
 
         return fig, df_norm, titulo
 
-    def atualizar_figura(self, x, y, suavizacao=7):
+    def atualizar_figura(self, x, y, suavizacao=7, obitos_casos='obitos'):
         """
         atualizar a figura com
         :return:
         """
+
+        dict_trad = {
+            'obitos': 'óbitos',
+            'casos': 'casos'
+        }
         self.fig.update_traces(connectgaps=True,
-                          hovertemplate=
-                          '<b>%{y:.1f} casos novos</b> / MM hab. nos 7 dias anteriores'
-                          )
+                               hovertemplate='<b>%{y:.1f} ' + dict_trad[obitos_casos]
+                              )
 
         self.fig.update_layout(hovermode='x unified',
                           title_text='Evolução da COVID-19 no Brasil (Óbitos)')
@@ -509,7 +513,7 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, suavizacao=suavizacao)
+        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos='obitos')
         self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
 
         # modificar estados dos botoes de escala dos eixos para estado anterior
