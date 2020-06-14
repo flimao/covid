@@ -501,6 +501,9 @@ class covid_plot:
         if normalizacao_pop != 0:
             normalizacao += [ normalizacao_pop ]
 
+        if len(normalizacao) == 0:
+            normalizacao = None
+
         if len(norm_xy_list)>0:
             norm_xy = ft.reduce(lambda x,y:x+y, norm_xy_list)
         else:
@@ -513,7 +516,7 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos='obitos')
+        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos=obitos_casos)
         self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
 
         # modificar estados dos botoes de escala dos eixos para estado anterior
