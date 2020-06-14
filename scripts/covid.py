@@ -56,7 +56,7 @@ class covid_brasil:
         if graficos:
             self.graficos()
 
-    def dumbcache_dump(self):
+    def dumbcache_dump(self, cache_dir=r'data\cache'):
         """
         salva os dados para o arquivo br_store.dmp na pasta 'cache'
         dados a serem salvos: self
@@ -64,7 +64,7 @@ class covid_brasil:
         """
         obj = self
 
-        DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+        DUMBCACHE = os.path.join(r'..', cache_dir, r'br_store.dmp')
         with open(DUMBCACHE, 'wb') as f:
             pkl.dump(obj, f)
 
@@ -1296,12 +1296,12 @@ class covid_brasil:
             self.eixos += axs
 
 
-def dumbcache_load():
+def dumbcache_load(cache_dir=r'data\cache'):
     """
     carrega os dados salvos via pickle na pasta cache, no arquivo br_store.dmp
     :return: instancia da classe covid_brasil
     """
-    DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+    DUMBCACHE = os.path.join(r'..', cache_dir, r'br_store.dmp')
     with open(DUMBCACHE, 'rb') as f:
         return pkl.load(f)
 

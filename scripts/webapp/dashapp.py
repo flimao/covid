@@ -19,7 +19,7 @@ from dash.dependencies import Input, Output
 
 from thesmuggler import smuggle
 
-covid = smuggle('./covid.py')
+covid = smuggle(r'..\covid.py')
 covid_brasil = covid.covid_brasil
 
 ##
@@ -548,8 +548,8 @@ class covid_plot:
         salvar as figuras
         :return: None
         """
-        html_fig = r'..\imgs (nogit)\img.html'
-        img = r'..\imgs (nogit)\img.png'
+        html_fig = r'..\..\imgs (nogit)\img.html'
+        img = r'..\..\imgs (nogit)\img.png'
 
         if html_fig is not None:
             self.fig.write_html(html_fig)
@@ -573,7 +573,7 @@ class covid_plot:
 
 # carregar o cache ao inves de processar os dados
 # br = covid.covid_brasil(diretorio = None, graficos = False)
-br = covid.dumbcache_load()
+br = covid.dumbcache_load(cache_dir=r'..\data\cache')
 
 plt = covid_plot(br)
 
