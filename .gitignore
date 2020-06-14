@@ -66,6 +66,7 @@ cache/
 *(nogit)*
 ~*
 .idea/
+cache/
 .ipynb_checkpoints/
 data/JohnsHopkinsU
 data/OurWorldInData
