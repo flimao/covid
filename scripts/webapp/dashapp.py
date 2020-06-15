@@ -58,10 +58,8 @@ class covid_plot:
         self.dashapp = self.dash_build()
 
         # callbacks
-
         self.dashapp.callback(
-            [ Output(component_id='covid', component_property='figure'),
-              Output(component_id='debug', component_property='children')],
+            Output(component_id='covid', component_property='figure'),
             [   Input(component_id='opcao_estado', component_property='value'),
                 Input(component_id='opcao_municipio', component_property='value'),
                 Input(component_id='opcao_obitos_casos', component_property='value'),
@@ -74,11 +72,6 @@ class covid_plot:
             ]
         )(self.atualizar_grafico)
 
-        self.dashapp.callback(
-            Output(component_id='btndebug', component_property='children'),
-            [Input(component_id='btn', component_property='n_clicks')]
-        )(self.update_regular)
-
     def construir_indice(self):
         """
         Construir índice de estados e municípios
@@ -87,17 +80,19 @@ class covid_plot:
         # construindo referencia de coduf e codmun
         df_exc = br.covidrel[br.mask_exc_resumo_rel]
         estados_key = df_exc.groupby('coduf')['estado'].first()
-        municipios_key = df_exc.groupby('codmun')[['estado', 'municipio']].first()
+        municipios_key = df_exc.groupby('codmun')['local'].first()
 
         # comparando com Brasil
         est_br = pd.Series(['Brasil'], index=pd.Index([76], name='coduf'), name='estado')
-        mun_br = pd.DataFrame([['Brasil', 'Brasil'],],
-                              columns=['estado', 'municipio'],
-                              index=pd.Index([76001], name='codmun')
-                              )
+        # já existe um codmun para o Brasil, 760001
+
+        #mun_br = pd.DataFrame([['Brasil'],],
+        #                      columns=['local'],
+        #                      index=pd.Index([76001], name='codmun')
+        #                      )
 
         estados_key = pd.concat([estados_key, est_br])
-        municipios_key = pd.concat([municipios_key, mun_br])
+        #municipios_key = pd.concat([municipios_key, mun_br])
 
         return estados_key, municipios_key
 
@@ -110,7 +105,10 @@ class covid_plot:
         """
         
         br = self.br
-        df = br.covidrel[(~br.mask_exc_resumo_rel) & (br.covidrel['coduf'].isin(data_estados))]
+        crel = br.covidrel.copy()
+        df_est = crel[(~br.mask_exc_resumo_rel) & (crel['coduf'].isin(data_estados))]
+        df_mun = crel[(br.mask_exc_resumo_rel) & (crel['codmun'].isin(data_municipios))]
+        df = pd.concat([df_est, df_mun])
 
         df_norm, titulo, _ = br.norm_grafico(
             dados=df,
@@ -121,13 +119,15 @@ class covid_plot:
         x_s = x + str(suavizacao)
         y_s = y + str(suavizacao)
         
-        fig1 = px.line(df_norm, x=x_s, y=y_s, color='estado', log_y=True, hover_name='estado')
+        fig1 = px.line(df_norm, x=x_s, y=y_s, color='local', log_y=True, hover_name='local')
 
         fig = fig1
 
         return fig, df_norm, titulo
 
-    def atualizar_figura(self, x, y, suavizacao=7, obitos_casos='obitos'):
+    def atualizar_figura(self, x, y, suavizacao=7,
+                         obitos_casos='obitos', normalizacao_pop='densidade_demografica',
+                         data_estados=[33], data_municipios=[330330]):
         """
         atualizar a figura com
         :return:
@@ -146,6 +146,15 @@ class covid_plot:
         
         x_s = x + str(suavizacao)
         y_s = y + str(suavizacao)
+
+        if normalizacao_pop == 'densidade_demografica':
+            for i, data in enumerate(self.fig['data']):
+                local = data['name']
+                if self.estados_key[data_estados].isin([local]).any():
+                    self.fig['data'][i]['visible'] = 'legendonly'
+        #else:
+        #    for i in range(len(self.fig['data'])):
+        #        self.fig['data'][i]['visible'] = True
         
         self.fig.update_yaxes(title_text=self.titulo[y_s])
         self.fig.update_xaxes(title_text=self.titulo[x_s])
@@ -279,10 +288,8 @@ class covid_plot:
             dcc.Dropdown(
                 id='opcao_municipio',
                 options=[
-                    {'label': self.municipios_key.loc[codmun, 'municipio'] + ', ' + \
-                              self.municipios_key.loc[codmun, 'estado'],
-                     'value': codmun}
-                    for codmun in self.municipios_key.index
+                    {'label': self.municipios_key[codmun], 'value': codmun}
+                        for codmun in self.municipios_key.index
                 ],
                 value=[330330, 330445],
                 multi=True
@@ -294,9 +301,10 @@ class covid_plot:
             dcc.Dropdown(
                 id='opcao_estado',
                 options=[
-                    {'label': self.estados_key[coduf], 'value': coduf} for coduf in self.estados_key.index
+                    {'label': self.estados_key[coduf], 'value': coduf}
+                        for coduf in self.estados_key.index
                 ],
-                value=[33, 34, 76],
+                value=[33, 35, 76],
                 multi=True
             ),
         ]
@@ -454,7 +462,7 @@ class covid_plot:
             html.Button('Clique aqui!', id='btn', n_clicks=0)
         ]
 
-    def dash_build(self):
+    def dash_build(self, debug=False):
         """
         construção do aplicativo Dash
         rodar todas as funções cujo nome começa por '__dash'
@@ -465,13 +473,23 @@ class covid_plot:
                            if k.startswith('_covid_plot__dash') ] # mangling
 
         for f in func_dash_build:
-            _ = f(self)
+            if 'debug' in f.__name__:
+                if debug:
+                    _ = f(self)
+            else:
+                _ = f(self)
 
         external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
         app = dash.Dash('covid',
                         external_stylesheets=external_stylesheets)
         app.title = 'COVID-19'
         app.layout = html.Div(children=ft.reduce(lambda x,y:x+y, self.dash_builder.values()))
+
+        if debug:
+            self.dashapp.callback(
+                Output(component_id='btndebug', component_property='children'),
+                [Input(component_id='btn', component_property='n_clicks')]
+            )(self.dbg_btn)
 
         return app
 
@@ -516,7 +534,9 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos=obitos_casos)
+        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos=obitos_casos,
+                              normalizacao_pop=normalizacao_pop, data_estados=data_estados,
+                              data_municipios=data_municipios)
         self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
 
         # modificar estados dos botoes de escala dos eixos para estado anterior
@@ -525,9 +545,7 @@ class covid_plot:
         # eixo y
         self.fig['layout']['yaxis']['type'] = y_log
 
-        debug = self.fig['layout']['xaxis']['type'] + '<br>' + x_log
-
-        return self.fig, debug
+        return self.fig
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
         """
@@ -548,6 +566,7 @@ class covid_plot:
         salvar as figuras
         :return: None
         """
+
         html_fig = r'..\..\imgs (nogit)\img.html'
         img = r'..\..\imgs (nogit)\img.png'
 
@@ -563,7 +582,8 @@ class covid_plot:
     def set_app_id(self, id, new):
         return self.dashapp.layout._get_set_or_delete(id=id, operation='set', new_item=new)
 
-    def update_regular(self, n_clicks):
+    # debug callback
+    def dbg_btn(self, n_clicks):
         #fig = self.get_app_id(id='covid').figure
         fig = self.fig
         txt1 = fig['layout']['xaxis']['type'] or ''
@@ -577,6 +597,7 @@ br = covid.dumbcache_load(cache_dir=r'..\data\cache')
 
 plt = covid_plot(br)
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
+if True:
     if os.environ.get('PYCHARM_HOSTED', default=0) == 0:
         plt.dashapp.run_server(debug=True)
