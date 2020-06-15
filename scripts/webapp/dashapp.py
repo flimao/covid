@@ -51,7 +51,6 @@ class covid_plot:
             data_estados, data_municipios, normalizacao, x, y
         )
         self.atualizar_figura(x, y)
-        #self.updatemenu(data_estados, data_municipios, x, y)
         self.salvar(html_fig = r'..\imgs (nogit)\img.html')
 
         self.dash_builder = {}
@@ -130,7 +129,8 @@ class covid_plot:
         return fig, df_norm, titulo
 
     def atualizar_figura(self, x, y, xlog='linear', ylog='log', suavizacao=7,
-                         obitos_casos='obitos', normalizacao_pop='densidade_demografica',
+                         obitos_casos='obitos', tempo_atempo = 'tempo',
+                         normalizacao_pop='densidade_demografica',
                          data_estados=[33], data_municipios=[330330]):
         """
         atualizar a figura com
@@ -141,13 +141,9 @@ class covid_plot:
             'obitos': 'óbitos',
             'casos': 'casos'
         }
-        self.fig.update_traces(connectgaps=True,
-                               hovertemplate='<b>%{y:.1f} ' + dict_trad[obitos_casos]
-                              )
+        self.fig.update_traces(connectgaps=True)
 
-        self.fig.update_layout(hovermode='x unified',
-                               title_text='Evolução da COVID-19 no Brasil (Óbitos)',
-                               xaxis_type=xlog, yaxis_type=ylog)
+        self.fig.update_layout(xaxis_type=xlog, yaxis_type=ylog)
         
         x_s = x + str(suavizacao)
         y_s = y + str(suavizacao)
@@ -161,115 +157,28 @@ class covid_plot:
         #    for i in range(len(self.fig['data'])):
         #        self.fig['data'][i]['visible'] = True
         
-        self.fig.update_yaxes(title_text=self.titulo[y_s])
-        self.fig.update_xaxes(title_text=self.titulo[x_s])
-
-    def updatemenu(self, data_estados, data_municipios, x='x_ott', y='y_ott',
-                   suavizacao=7):
-        """
-        construir updatemenu
-        :return: None
-        """
-        df_norm = self.df_norm
-    
-        x_s = x + str(suavizacao)
-        y_s = y + str(suavizacao)
-
-        log_linear = [{
-            'active': 0,
-            'y': 1, 'x': 0,
-            'xanchor': 'left', 'yanchor': 'top',
-            'type': 'dropdown',
-            'buttons': [
-                {'label': 'Log',
-                 'method': 'relayout',
-                 'args': ['yaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[y_s]}}]
-                 },
-                {'label': 'Linear',
-                 'method': 'relayout',
-                 'args': ['yaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[y_s]}}]
-                 }
-            ]
-        }, {
-            'active': 1,
-            'y': 0, 'x': 1,
-            'xanchor': 'right', 'yanchor': 'bottom',
-            'type': 'dropdown', 'direction': 'left',
-            'buttons': [
-                {'label': 'Log',
-                 'method': 'relayout',
-                 'args': ['xaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[x_s]}}]
-                 },
-                {'label': 'Linear',
-                 'method': 'relayout',
-                 'args': ['xaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[x_s]}}]
-                 }
-            ]
-        }]
-
-        obitos_casos = [dict(
-            active=0,
-            x=0.5, y=1.1,
-            xanchor='left', yanchor='bottom',
-            type='dropdown', direction='down',
-            buttons=[dict(
-                label='óbitos',
-                method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x_s] for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados]
-                       }]
-            ), dict(
-                label='casos',
-                method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x_s]for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados],
-                       'xaxis': {'title': {'text': self.titulo[x_s]}},
-                       'yaxis': {'title': {'text': self.titulo[y_s]}},
-                       }]
+        # se o eixo x for tempo, o título é o do gráfico
+        if tempo_atempo == 'tempo':
+            self.fig.update_layout(
+                hovermode = 'x unified',
+                title_text = self.titulo[y_s],
+                yaxis_title_text = '',
+                xaxis_title_text = self.titulo[x_s]
             )
-            ]
-        )]
-
-        annot_obitos_casos = [
-            dict(text="Tipo", showarrow=False,
-                 x=0.5, y=1.09, yref="paper", xref='paper',
-                 xanchor='right', yanchor='bottom',
-                 font_size=16
-                 )
-        ]
-
-        total_novos = [dict(
-            active=0,
-            x=0.75, y=1.1,
-            xanchor='left', yanchor='bottom',
-            type='dropdown', direction='down',
-            buttons=[dict(
-                label='# total',
-                method='restyle',
-                args=[]
-            ), dict(
-                label='# novos',
-                method='restyle',
-                args=[]
+            self.fig.update_traces(
+                hovertemplate='%{y:.1f} ' + dict_trad[obitos_casos]
             )
-            ]
-        )]
-
-        annot_total_novos = [
-            dict(text="Concentração", showarrow=False,
-                 x=0.75, y=1.09, yref="paper", xref='paper',
-                 xanchor='right', yanchor='bottom',
-                 font_size=16
-                 )
-        ]
-
-        self.fig.update_layout(updatemenus=log_linear  # + obitos_casos + total_novos,
-                          # annotations=annot_obitos_casos + annot_total_novos)
-                          )
+        # caso contrário, o título vai para o eixo y, e o hovermode muda
+        else:
+            self.fig.update_layout(
+                hovermode = 'x',
+                title_text = 'Evolução da COVID-19 (' + dict_trad[obitos_casos] + ')',
+                yaxis_title_text = self.titulo[y_s],
+                xaxis_title_text = self.titulo[x_s]
+            )
+            self.fig.update_traces(
+                hovertemplate='%{y:.1f} ' + dict_trad[obitos_casos]
+            )
 
     def __dash_cabecalho(self):
         """
@@ -555,9 +464,10 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, xlog, ylog, suavizacao=suavizacao, obitos_casos=obitos_casos,
-                              normalizacao_pop=normalizacao_pop, data_estados=data_estados,
-                              data_municipios=data_municipios)
+        self.atualizar_figura(x, y, xlog, ylog, suavizacao=suavizacao,
+                              obitos_casos=obitos_casos, tempo_atempo=tempo_atempo,
+                              normalizacao_pop=normalizacao_pop,
+                              data_estados=data_estados, data_municipios=data_municipios)
         
         # uirevision
         self.fig['layout']['uirevision']='none'
@@ -604,7 +514,6 @@ class covid_plot:
         #fig = self.get_app_id(id='covid').figure
         fig = self.fig
         txt1 = fig['layout']['xaxis']['type'] or ''
-        #txt2 = fig['layout']['updatemenus'][1]['active']
         txt = 'Escala eixo X: ' + txt1 + '\\n'
         txt += r'\\n' + str(relayout)
         return txt
