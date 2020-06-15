@@ -56,7 +56,7 @@ class covid_brasil:
         if graficos:
             self.graficos()
 
-    def dumbcache_dump(self):
+    def dumbcache_dump(self, cache_dir=r'data\cache'):
         """
         salva os dados para o arquivo br_store.dmp na pasta 'cache'
         dados a serem salvos: self
@@ -64,7 +64,7 @@ class covid_brasil:
         """
         obj = self
 
-        DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+        DUMBCACHE = os.path.join(r'..', cache_dir, r'br_store.dmp')
         with open(DUMBCACHE, 'wb') as f:
             pkl.dump(obj, f)
 
@@ -406,6 +406,7 @@ class covid_brasil:
         :return: None
         """
 
+
         self.mask_forademunicipios = ((self.covidbr['municipio'].isnull()) &
                                  (~self.covidbr['codmun'].isnull()) &
                                  (self.covidbr['codmun'] < 999999) &
@@ -414,6 +415,7 @@ class covid_brasil:
         mask_resumo_estado = (self.covidbr['municipio'].isnull() & self.covidbr['codmun'].isnull())
         mask_resumo_brasil = (self.covidbr['estado'].isnull())
 
+        # renomear municipios e estados
         self.covidbr.loc[self.covidbr[self.mask_forademunicipios].index, 'municipio'] = 'SEM MUNICÍPIO'
         self.covidbr.loc[self.covidbr[mask_resumo_estado].index, 'municipio'] = 'RESUMO'
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'municipio'] = 'Brasil'
@@ -421,6 +423,15 @@ class covid_brasil:
 
         # acertando o resumo brasileiro para a função de plotagem
         self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'codmun'] = 760001
+
+        # local
+        self.covidbr['local'] = self.covidbr['municipio'] + ', ' + \
+                                self.covidbr['estado']
+
+        self.covidbr.loc[self.covidbr[mask_resumo_estado].index, 'local'] = \
+            self.covidbr['estado']
+
+        self.covidbr.loc[self.covidbr[mask_resumo_brasil].index, 'local'] = 'Brasil'
 
     def consertar_municipios(self):
         """
@@ -574,7 +585,8 @@ class covid_brasil:
 
         :return: None
         """
-        self.covidbr['norm_densidade'] = self.covidbr['area'] / (self.covidbr['populacaoTCU2019'])
+        self.covidbr['norm_densidade'] = self.covidbr['area'] / \
+                                         (self.covidbr['populacaoTCU2019']/1000)
 
     def __norm_perfil_demografico(self):
         """
@@ -649,7 +661,7 @@ class covid_brasil:
 
         subst = {
             'percapita': 'MM hab.',
-            'densidade_demografica': 'densidade demográfica (MM hab/km2)',
+            'densidade_demografica': 'densidade demográfica (1000 hab/km2)',
             'perfil_demografico': '% idosos na população'
         }
 
@@ -1296,12 +1308,12 @@ class covid_brasil:
             self.eixos += axs
 
 
-def dumbcache_load():
+def dumbcache_load(cache_dir=r'data\cache'):
     """
     carrega os dados salvos via pickle na pasta cache, no arquivo br_store.dmp
     :return: instancia da classe covid_brasil
     """
-    DUMBCACHE = os.path.join(r'..', r'cache', r'br_store.dmp')
+    DUMBCACHE = os.path.join(r'..', cache_dir, r'br_store.dmp')
     with open(DUMBCACHE, 'rb') as f:
         return pkl.load(f)
 
