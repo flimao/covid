@@ -129,7 +129,7 @@ class covid_plot:
 
         return fig, df_norm, titulo
 
-    def atualizar_figura(self, x, y, suavizacao=7,
+    def atualizar_figura(self, x, y, xlog='linear', ylog='log', suavizacao=7,
                          obitos_casos='obitos', normalizacao_pop='densidade_demografica',
                          data_estados=[33], data_municipios=[330330]):
         """
@@ -146,7 +146,8 @@ class covid_plot:
                               )
 
         self.fig.update_layout(hovermode='x unified',
-                          title_text='Evolução da COVID-19 no Brasil (Óbitos)')
+                               title_text='Evolução da COVID-19 no Brasil (Óbitos)',
+                               xaxis_type=xlog, yaxis_type=ylog)
         
         x_s = x + str(suavizacao)
         y_s = y + str(suavizacao)
@@ -554,16 +555,9 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos=obitos_casos,
+        self.atualizar_figura(x, y, xlog, ylog, suavizacao=suavizacao, obitos_casos=obitos_casos,
                               normalizacao_pop=normalizacao_pop, data_estados=data_estados,
                               data_municipios=data_municipios)
-        # self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
-
-        # modificar estados dos botoes de escala dos eixos para estado anterior
-        # eixo x
-        self.fig['layout']['xaxis']['type'] = x_log
-        # eixo y
-        self.fig['layout']['yaxis']['type'] = y_log
         
         # uirevision
         self.fig['layout']['uirevision']='none'
