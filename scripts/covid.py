@@ -95,11 +95,11 @@ class covid_brasil:
         
         # mistaken dtypes for correction
         cols_dtypes.update({
-            k: 'string' for k in [ 'populacaoTCU2019' ]
+            k: 'string' for k in [ 'populacaoTCU2019', 'data' ]
         })
         cols_dtypes_dt = { k: 'datetime64[ns]' for k in ['data'] }
         covid = pd.read_csv(DATAFILE_DATA_io, sep=';',
-            encoding='windows-1252', dtype=cols_dtypes, parse_dates = [ 'data' ]
+            encoding='windows-1252', dtype=cols_dtypes
         )
 
         # dados geográficos dos territórios brasileiros
@@ -132,6 +132,7 @@ class covid_brasil:
 
         # processar datas
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%d/%m/%Y')
+        self.covidbr['data'] = self.covidbr['data'].astype(pd.DatetimeTZDtype(tz='America/Sao_Paulo'))
 
         # 2020-06-02: O Ministério da Saúde cagou os dados de população na planilha divulgada diariamente.
         # devemos consertá-lo
