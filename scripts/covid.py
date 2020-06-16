@@ -750,6 +750,9 @@ class covid_brasil:
                 ['total', 'novos'],
                 ['temporal', 'atemporal']
             ]
+            
+            texto_mm = { mm: 'média móvel de ' + str(mm) + ' dias' for mm in [0, 3, 5, 7] }
+            texto_mm[0] = ''
 
             for axis in ['x', 'y']:
                 combinations = list(pd.MultiIndex.from_product(tipo_graf_all))
@@ -771,7 +774,8 @@ class covid_brasil:
                     ) }
 
                 for comb in combinations:
-                    for mm_str in [ '0', '3', '5', '7']:
+                    for mm in texto_mm.keys():
+                        mm_str = str(mm)
                         str_key = axis + '_'
                         for c in comb:
                             str_key += c[0]
@@ -794,43 +798,55 @@ class covid_brasil:
                             # se eixo x for atemporal, há duas possibilidades: total de óbitos ou total de casos
                             elif 'o' in str_key:
                                 titulo_orig[str_key] = 'Total de óbitos'
+                                if texto_mm[mm] != '':
+                                    titulo_orig[str_key] = titulo_orig[str_key] + ' (' + texto_mm[mm] + ')'
     
                             # caso eixo x seja atemporal mas não seja óbitos, então é total de casos
                             else:
                                 titulo_orig[str_key] = 'Total de casos'
+                                if texto_mm[mm] != '':
+                                    titulo_orig[str_key] = titulo_orig[str_key] + ' (' + texto_mm[mm] + ')'
     
                         else:
                             # há seis possibilidades para o eixo y.
                             # se gráfico for atemporal, só há duas possibilidades, novos casos ou novos óbitos
                             if 'a' in str_key:
                                 if 'o' in str_key:
-                                    titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' +\
-                                                           mm_str + ' dias)'
+                                    titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias)'
+                                    if texto_mm[mm] != '':
+                                        titulo_orig[str_key] = titulo_orig[str_key][:-1] + ', ' + texto_mm[mm] + ')'
                                 else:
-                                    titulo_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' + \
-                                                           mm_str + ' dias)'
+                                    titulo_orig[str_key] = 'Novos casos (últ. 7 dias)'
+                                    if texto_mm[mm] != '':
+                                        titulo_orig[str_key] = titulo_orig[str_key][:-1] + ', ' + texto_mm[mm] + ')'
     
                             # se o gráfico for temporal, então há quatro possibilidades para o eixo y
                             else:
                                 # novos óbitos
                                 if 'o' in str_key:
                                     if 'n' in str_key:
-                                        titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias, média móvel de ' +\
-                                                               mm_str + ' dias)'
-    
+                                        titulo_orig[str_key] = 'Novos óbitos (últ. 7 dias)'
+                                        if texto_mm[mm] != '':
+                                            titulo_orig[str_key] = titulo_orig[str_key][:-1] + ', ' + texto_mm[mm] + ')'
+                                            
                                     # total de óbitos
                                     else:
                                         titulo_orig[str_key] = 'Total de Óbitos'
+                                        if texto_mm[mm] != '':
+                                            titulo_orig[str_key] = titulo_orig[str_key] + ' (' + texto_mm[mm] + ')'
     
                                 else:
                                     # novos casos
                                     if 'n' in str_key:
-                                        titulo_orig[str_key] = 'Novos casos (últ. 7 dias, média móvel de ' +\
-                                                               mm_str + ' dias)'
+                                        titulo_orig[str_key] = 'Novos casos (últ. 7 dias)'
+                                        if texto_mm[mm] != '':
+                                            titulo_orig[str_key] = titulo_orig[str_key][:-1] + ', ' + texto_mm[mm] + ')'
     
                                     # total de casos
                                     else:
                                         titulo_orig[str_key] = 'Total de casos'
+                                        if texto_mm[mm] != '':
+                                            titulo_orig[str_key] = titulo_orig[str_key] + ' (' + texto_mm[mm] + ')'
 
             titulo = titulo_orig.copy()
             for k, v in titulo.items():
