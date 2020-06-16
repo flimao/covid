@@ -15,10 +15,9 @@ import plotly.express as px
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 from thesmuggler import smuggle
-
 
 covid = smuggle(r'..\covid.py')
 covid_brasil = covid.covid_brasil
@@ -52,16 +51,17 @@ class covid_plot:
             data_estados, data_municipios, normalizacao, x, y
         )
         self.atualizar_figura(x, y)
-        self.updatemenu(data_estados, data_municipios, x, y)
         self.salvar(html_fig = r'..\imgs (nogit)\img.html')
 
         self.dash_builder = {}
-        self.dashapp = self.dash_build()
+        self.dashapp = self.dash_build(debug=True)
 
         # callbacks
         self.dashapp.callback(
             Output(component_id='covid', component_property='figure'),
-            [   Input(component_id='opcao_estado', component_property='value'),
+            [   Input(component_id='xlog', component_property='value'),
+                Input(component_id='ylog', component_property='value'),
+                Input(component_id='opcao_estado', component_property='value'),
                 Input(component_id='opcao_municipio', component_property='value'),
                 Input(component_id='opcao_obitos_casos', component_property='value'),
                 Input(component_id='opcao_total_novos', component_property='value'),
@@ -70,8 +70,17 @@ class covid_plot:
                 Input(component_id='opcao_norm_pop', component_property='value'),
                 Input(component_id='opcao_norm_extra', component_property='value'),
                 Input(component_id='opcao_norm_xy', component_property='value')
+            ],[
+                State(component_id='covid', component_property='figure')
             ]
         )(self.atualizar_grafico)
+        self.dashapp.callback(
+            [Output(component_id='xlog', component_property='value'),
+             Output(component_id='opcao_norm_xy', component_property='value')],
+            [Input(component_id='opcao_eixox_tempo', component_property='value'),
+             Input(component_id='ylog', component_property='value')],
+            [State(component_id='opcao_norm_xy', component_property='value')]
+        )(self.escala_eixo)
 
     def construir_indice(self):
         """
@@ -126,8 +135,9 @@ class covid_plot:
 
         return fig, df_norm, titulo
 
-    def atualizar_figura(self, x, y, suavizacao=7,
-                         obitos_casos='obitos', normalizacao_pop='densidade_demografica',
+    def atualizar_figura(self, x, y, xlog='linear', ylog='log', suavizacao=7,
+                         obitos_casos='obitos', tempo_atempo = 'tempo',
+                         normalizacao_pop='densidade_demografica',
                          data_estados=[33], data_municipios=[330330]):
         """
         atualizar a figura com
@@ -138,12 +148,9 @@ class covid_plot:
             'obitos': 'óbitos',
             'casos': 'casos'
         }
-        self.fig.update_traces(connectgaps=True,
-                               hovertemplate='<b>%{y:.1f} ' + dict_trad[obitos_casos]
-                              )
+        self.fig.update_traces(connectgaps=True)
 
-        self.fig.update_layout(hovermode='x unified',
-                          title_text='Evolução da COVID-19 no Brasil (Óbitos)')
+        self.fig.update_layout(xaxis_type=xlog, yaxis_type=ylog)
         
         x_s = x + str(suavizacao)
         y_s = y + str(suavizacao)
@@ -157,115 +164,28 @@ class covid_plot:
         #    for i in range(len(self.fig['data'])):
         #        self.fig['data'][i]['visible'] = True
         
-        self.fig.update_yaxes(title_text=self.titulo[y_s])
-        self.fig.update_xaxes(title_text=self.titulo[x_s])
-
-    def updatemenu(self, data_estados, data_municipios, x='x_ott', y='y_ott',
-                   suavizacao=7):
-        """
-        construir updatemenu
-        :return: None
-        """
-        df_norm = self.df_norm
-    
-        x_s = x + str(suavizacao)
-        y_s = y + str(suavizacao)
-
-        log_linear = [{
-            'active': 0,
-            'y': 1, 'x': 0,
-            'xanchor': 'left', 'yanchor': 'top',
-            'type': 'dropdown',
-            'buttons': [
-                {'label': 'Log',
-                 'method': 'relayout',
-                 'args': ['yaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[y_s]}}]
-                 },
-                {'label': 'Linear',
-                 'method': 'relayout',
-                 'args': ['yaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[y_s]}}]
-                 }
-            ]
-        }, {
-            'active': 1,
-            'y': 0, 'x': 1,
-            'xanchor': 'right', 'yanchor': 'bottom',
-            'type': 'dropdown', 'direction': 'left',
-            'buttons': [
-                {'label': 'Log',
-                 'method': 'relayout',
-                 'args': ['xaxis', {'type': 'log',
-                                    'title': {'text': self.titulo[x_s]}}]
-                 },
-                {'label': 'Linear',
-                 'method': 'relayout',
-                 'args': ['xaxis', {'type': 'linear',
-                                    'title': {'text': self.titulo[x_s]}}]
-                 }
-            ]
-        }]
-
-        obitos_casos = [dict(
-            active=0,
-            x=0.5, y=1.1,
-            xanchor='left', yanchor='bottom',
-            type='dropdown', direction='down',
-            buttons=[dict(
-                label='óbitos',
-                method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x_s] for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados]
-                       }]
-            ), dict(
-                label='casos',
-                method='restyle',
-                args=[{'x': [df_norm[df_norm['estado'] == c][x_s]for c in data_estados],
-                       'y': [df_norm[df_norm['estado'] == c][y_s] for c in data_estados],
-                       'xaxis': {'title': {'text': self.titulo[x_s]}},
-                       'yaxis': {'title': {'text': self.titulo[y_s]}},
-                       }]
+        # se o eixo x for tempo, o título é o do gráfico
+        if tempo_atempo == 'tempo':
+            self.fig.update_layout(
+                hovermode = 'x unified',
+                title_text = self.titulo[y_s],
+                yaxis_title_text = '',
+                xaxis_title_text = self.titulo[x_s]
             )
-            ]
-        )]
-
-        annot_obitos_casos = [
-            dict(text="Tipo", showarrow=False,
-                 x=0.5, y=1.09, yref="paper", xref='paper',
-                 xanchor='right', yanchor='bottom',
-                 font_size=16
-                 )
-        ]
-
-        total_novos = [dict(
-            active=0,
-            x=0.75, y=1.1,
-            xanchor='left', yanchor='bottom',
-            type='dropdown', direction='down',
-            buttons=[dict(
-                label='# total',
-                method='restyle',
-                args=[]
-            ), dict(
-                label='# novos',
-                method='restyle',
-                args=[]
+            self.fig.update_traces(
+                hovertemplate='%{y:.1f} ' + dict_trad[obitos_casos]
             )
-            ]
-        )]
-
-        annot_total_novos = [
-            dict(text="Concentração", showarrow=False,
-                 x=0.75, y=1.09, yref="paper", xref='paper',
-                 xanchor='right', yanchor='bottom',
-                 font_size=16
-                 )
-        ]
-
-        self.fig.update_layout(updatemenus=log_linear  # + obitos_casos + total_novos,
-                          # annotations=annot_obitos_casos + annot_total_novos)
-                          )
+        # caso contrário, o título vai para o eixo y, e o hovermode muda
+        else:
+            self.fig.update_layout(
+                hovermode = 'x',
+                title_text = 'Evolução da COVID-19 (' + dict_trad[obitos_casos] + ')',
+                yaxis_title_text = self.titulo[y_s],
+                xaxis_title_text = self.titulo[x_s]
+            )
+            self.fig.update_traces(
+                hovertemplate='%{y:.1f} ' + dict_trad[obitos_casos]
+            )
 
     def __dash_cabecalho(self):
         """
@@ -334,11 +254,30 @@ class covid_plot:
 
         :return: None
         """
-        self.dash_builder['grafico'] = [
-            dcc.Graph(id='covid',
-                      figure=self.fig
-                      )
-        ]
+
+        dropdown_xlog = dcc.Dropdown(
+            id = 'xlog', className='axisTipo',
+            options=[
+                dict(label='log', value='log'),
+                dict(label='lin', value='linear'),
+            ],
+            value='linear',
+            clearable=False
+        )
+        
+        dropdown_ylog = dcc.Dropdown(
+            id = 'ylog', className='axisTipo',
+            options=[
+                dict(label='log', value='log'),
+                dict(label='lin', value='linear'),
+            ],
+            value='log',
+            clearable=False
+        )
+
+        fig = dcc.Graph(id='covid', figure=self.fig)
+        
+        self.dash_builder['grafico'] = [ html.Div(id='figdiv', children=[ fig, dropdown_xlog, dropdown_ylog ]) ]
 
     def __dash_opcoes(self):
         """
@@ -487,21 +426,21 @@ class covid_plot:
         app.layout = html.Div(children=ft.reduce(lambda x,y:x+y, self.dash_builder.values()))
 
         if debug:
-            self.dashapp.callback(
+            app.callback(
                 Output(component_id='btndebug', component_property='children'),
-                [Input(component_id='btn', component_property='n_clicks')]
+                [Input(component_id='btn', component_property='n_clicks')],
+                [State(component_id='covid', component_property='relayoutData')]
             )(self.dbg_btn)
 
         return app
 
     # dash app callback
-    def atualizar_grafico(self,
+    def atualizar_grafico(self, xlog, ylog,
                           data_estados, data_municipios,
-                          obitos_casos='obitos', total_novos='total', tempo_atempo='tempo',
-                          suavizacao=7,
-                          normalizacao_pop='percapita',
-                          normalizacao_extra=[],
-                          norm_xy_list=['y']
+                          obitos_casos, total_novos, tempo_atempo,
+                          suavizacao,
+                          normalizacao_pop, normalizacao_extra, norm_xy_list,
+                          fig
                           ):
         """
         selecionar x e y com base nas opções
@@ -510,10 +449,7 @@ class covid_plot:
         x, y = self.selec_xy(obitos_casos, total_novos, tempo_atempo)
 
         # acessar figura antes da atualização para saber o estado dos botoes de escala dos eixos
-        fig_old = self.get_app_id(id='covid').figure
-
-        x_log = fig_old['layout']['xaxis']['type'] or 'linear'
-        y_log = fig_old['layout']['yaxis']['type'] or 'linear'
+        fig_old = fig
 
         # normalizacao
         normalizacao = normalizacao_extra
@@ -535,18 +471,36 @@ class covid_plot:
             norm_xy=norm_xy
         )
 
-        self.atualizar_figura(x, y, suavizacao=suavizacao, obitos_casos=obitos_casos,
-                              normalizacao_pop=normalizacao_pop, data_estados=data_estados,
-                              data_municipios=data_municipios)
-        self.updatemenu(data_estados, data_municipios, x, y, suavizacao=suavizacao)
-
-        # modificar estados dos botoes de escala dos eixos para estado anterior
-        # eixo x
-        self.fig['layout']['xaxis']['type'] = x_log
-        # eixo y
-        self.fig['layout']['yaxis']['type'] = y_log
+        self.atualizar_figura(x, y, xlog, ylog, suavizacao=suavizacao,
+                              obitos_casos=obitos_casos, tempo_atempo=tempo_atempo,
+                              normalizacao_pop=normalizacao_pop,
+                              data_estados=data_estados, data_municipios=data_municipios)
+        
+        # uirevision
+        self.fig['layout']['uirevision']='none'
 
         return self.fig
+    
+    # dash app callback
+    def escala_eixo(self, tempo_atempo, ylog, eixo_norm):
+        """
+        selecionar escala do eixo a depender das opções
+        :param tempo_atempo: opção de eixo X temporal ou atemporal
+        :param xlog: escala do eixo y
+        :param eixo_norm: o qual eixo aplicar a normalização
+        :return: dash.Output: xlog e eixo_norm
+        """
+        if tempo_atempo == 'tempo':
+            xlog = 'linear'
+            eixo_norm = list(frozenset(eixo_norm) - frozenset(['x']))
+        
+        else:
+            xlog = ylog
+            if 'y' in eixo_norm:
+                eixo_norm = list(frozenset(eixo_norm) | frozenset(['x']))
+        
+        return xlog, eixo_norm
+        
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
         """
@@ -584,12 +538,12 @@ class covid_plot:
         return self.dashapp.layout._get_set_or_delete(id=id, operation='set', new_item=new)
 
     # debug callback
-    def dbg_btn(self, n_clicks):
+    def dbg_btn(self, n_clicks, relayout):
         #fig = self.get_app_id(id='covid').figure
         fig = self.fig
         txt1 = fig['layout']['xaxis']['type'] or ''
-        txt2 = fig['layout']['updatemenus'][1]['active']
-        txt = 'Escala eixo X: ' + txt1 + '<br>'+ 'Seleção do botão da escala: ' + str(txt2)
+        txt = 'Escala eixo X: ' + txt1 + '\\n'
+        txt += r'\\n' + str(relayout)
         return txt
 
 # carregar o cache ao inves de processar os dados
