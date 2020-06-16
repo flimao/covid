@@ -74,6 +74,13 @@ class covid_plot:
                 State(component_id='covid', component_property='figure')
             ]
         )(self.atualizar_grafico)
+        self.dashapp.callback(
+            [Output(component_id='xlog', component_property='value'),
+             Output(component_id='opcao_norm_xy', component_property='value')],
+            [Input(component_id='opcao_eixox_tempo', component_property='value'),
+             Input(component_id='ylog', component_property='value')],
+            [State(component_id='opcao_norm_xy', component_property='value')]
+        )(self.escala_eixo)
 
     def construir_indice(self):
         """
@@ -473,6 +480,27 @@ class covid_plot:
         self.fig['layout']['uirevision']='none'
 
         return self.fig
+    
+    # dash app callback
+    def escala_eixo(self, tempo_atempo, ylog, eixo_norm):
+        """
+        selecionar escala do eixo a depender das opções
+        :param tempo_atempo: opção de eixo X temporal ou atemporal
+        :param xlog: escala do eixo y
+        :param eixo_norm: o qual eixo aplicar a normalização
+        :return: dash.Output: xlog e eixo_norm
+        """
+        if tempo_atempo == 'tempo':
+            xlog = 'linear'
+            eixo_norm = list(frozenset(eixo_norm) - frozenset(['x']))
+        
+        else:
+            xlog = ylog
+            if 'y' in eixo_norm:
+                eixo_norm = list(frozenset(eixo_norm) | frozenset(['x']))
+        
+        return xlog, eixo_norm
+        
 
     def selec_xy(self, obitos_casos, total_novos, tempo_atempo):
         """
