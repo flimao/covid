@@ -80,13 +80,27 @@ class covid_brasil:
 
         # dados da evolução da COVID-19
         # abrir planilha com data de modificação mais recente
-        xlsx_files = [ os.path.join(diretorio, r'data', r'Brasil', f)
+        csv_files = [ os.path.join(diretorio, r'data', r'Brasil', f)
                         for f in os.listdir(os.path.join(diretorio, r'data', r'Brasil'))
-                        if f.endswith('.xlsx') ]
-        xlsx_files.sort(key=lambda x:os.path.getmtime(x))
-        DATAFILE_DATA_io = xlsx_files[-1]
-
-        covid = pd.read_excel(DATAFILE_DATA_io)
+                        if f.startswith('HIST_PAINEL_COVIDBR') and f.endswith('.csv') ]
+        csv_files.sort(key=lambda x:os.path.getmtime(x))
+        DATAFILE_DATA_io = csv_files[-1]
+        
+        cols_dtypes = { k: 'string' for k in [ 'regiao', 'estado', 'municipio', 'nomeRegiaoSaude' ] }
+        cols_dtypes.update({
+            k: 'Int64' for k in [ 'coduf', 'codmun', 'codRegiaoSaude', 'semanaEpi',
+                                  'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
+                                  'Recuperadosnovos', 'emAcompanhamentoNovos' ]
+        })
+        
+        # mistaken dtypes for correction
+        cols_dtypes.update({
+            k: 'string' for k in [ 'populacaoTCU2019' ]
+        })
+        cols_dtypes_dt = { k: 'datetime64[ns]' for k in ['data'] }
+        covid = pd.read_csv(DATAFILE_DATA_io, sep=';',
+            encoding='windows-1252', dtype=cols_dtypes, parse_dates = [ 'data' ]
+        )
 
         # dados geográficos dos territórios brasileiros
         DATAFILE_GEO = r'AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2019.xls'
@@ -117,7 +131,7 @@ class covid_brasil:
         """
 
         # processar datas
-        self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%Y-%m-%d')
+        self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%d/%m/%Y')
 
         # 2020-06-02: O Ministério da Saúde cagou os dados de população na planilha divulgada diariamente.
         # devemos consertá-lo
