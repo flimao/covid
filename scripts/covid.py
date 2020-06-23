@@ -131,7 +131,7 @@ class covid_brasil:
         """
 
         # processar datas
-
+        
         self.covidbr['data'] = pd.to_datetime(self.covidbr['data'], format='%d/%m/%Y')
         self.covidbr['data'] = self.covidbr['data'].astype(pd.DatetimeTZDtype(tz='America/Sao_Paulo'))
 
